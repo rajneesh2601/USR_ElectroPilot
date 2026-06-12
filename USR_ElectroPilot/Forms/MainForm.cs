@@ -13,6 +13,7 @@ namespace USR_ElectroPilot.Forms
         private readonly TankService _tankService = new TankService();
         private readonly WagonService _wagonService = new WagonService();
         private readonly RectifierService _rectifierService = new RectifierService();
+        private readonly SimulatorService _simulatorService = new SimulatorService();
 
         public MainForm()
         {
@@ -25,6 +26,7 @@ namespace USR_ElectroPilot.Forms
             Text = Constants.ApplicationName + " - " + AppSession.Username;
             lblUser.Text = AppSession.Username + " (" + AppSession.Role + ")";
             RefreshDashboard();
+            simulatorTimer.Start();
         }
 
         private void BtnRefresh_Click(object sender, EventArgs e)
@@ -53,6 +55,35 @@ namespace USR_ElectroPilot.Forms
                 Logger.Error("Dashboard refresh failed", ex);
                 MessageBox.Show("Dashboard refresh failed. Check Logs folder.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void SimulatorTimer_Tick(object sender, EventArgs e)
+        {
+            var tanks = new System.Collections.Generic.List<TankModel>();
+            foreach (Control control in pnlTanks.Controls)
+            {
+                var tankControl = control as TankControl;
+                if (tankControl != null && tankControl.Tank != null)
+                {
+                    tanks.Add(tankControl.Tank);
+                }
+            }
+
+            var rectifiers = new System.Collections.Generic.List<RectifierModel>();
+            foreach (Control control in pnlRectifiers.Controls)
+            {
+                var rectifierControl = control as RectifierControl;
+                if (rectifierControl != null && rectifierControl.Rectifier != null)
+                {
+                    rectifiers.Add(rectifierControl.Rectifier);
+                }
+            }
+
+            _simulatorService.SimulateTanks(tanks);
+            _simulatorService.SimulateRectifiers(rectifiers);
+
+            pnlTanks.Invalidate(true);
+            pnlRectifiers.Invalidate(true);
         }
 
         private void LoadStatusCards(PlantStatusModel status)

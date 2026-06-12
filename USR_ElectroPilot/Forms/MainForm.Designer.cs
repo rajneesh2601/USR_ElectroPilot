@@ -17,6 +17,7 @@ namespace USR_ElectroPilot.Forms
         private System.Windows.Forms.FlowLayoutPanel pnlWagons;
         private System.Windows.Forms.FlowLayoutPanel pnlRectifiers;
         private System.Windows.Forms.DataGridView alarmGrid;
+        private System.Windows.Forms.Timer simulatorTimer;
 
         protected override void Dispose(bool disposing)
         {
@@ -44,6 +45,7 @@ namespace USR_ElectroPilot.Forms
             this.pnlRectifiers = new System.Windows.Forms.FlowLayoutPanel();
             this.tabAlarms = new System.Windows.Forms.TabPage();
             this.alarmGrid = new System.Windows.Forms.DataGridView();
+            this.simulatorTimer = new System.Windows.Forms.Timer(this.components);
             this.toolStrip.SuspendLayout();
             this.tabs.SuspendLayout();
             this.tabTanks.SuspendLayout();
@@ -193,6 +195,11 @@ namespace USR_ElectroPilot.Forms
             this.alarmGrid.ReadOnly = true;
             this.alarmGrid.Size = new System.Drawing.Size(1096, 512);
             this.alarmGrid.TabIndex = 0;
+            // 
+            // simulatorTimer
+            // 
+            this.simulatorTimer.Interval = 1000;
+            this.simulatorTimer.Tick += new System.EventHandler(this.SimulatorTimer_Tick);
             // 
             // MainForm
             // 

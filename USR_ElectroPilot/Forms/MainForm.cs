@@ -14,6 +14,7 @@ namespace USR_ElectroPilot.Forms
         private readonly WagonService _wagonService = new WagonService();
         private readonly RectifierService _rectifierService = new RectifierService();
         private readonly SimulatorService _simulatorService = new SimulatorService();
+        private readonly AlarmService _alarmService = new AlarmService();
 
         public MainForm()
         {
@@ -49,6 +50,7 @@ namespace USR_ElectroPilot.Forms
                 LoadTanks();
                 LoadWagons();
                 LoadRectifiers();
+                LoadAlarms();
             }
             catch (Exception ex)
             {
@@ -130,6 +132,38 @@ namespace USR_ElectroPilot.Forms
             foreach (var rectifier in _rectifierService.GetRectifiers())
             {
                 pnlRectifiers.Controls.Add(new RectifierControl { Rectifier = rectifier, Margin = new Padding(8) });
+            }
+        }
+
+        private void LoadAlarms()
+        {
+            alarmGrid.AutoGenerateColumns = true;
+            alarmGrid.DataSource = _alarmService.GetAlarms();
+            ApplyAlarmGridColors();
+        }
+
+        private void ApplyAlarmGridColors()
+        {
+            foreach (DataGridViewRow row in alarmGrid.Rows)
+            {
+                var severity = Convert.ToString(row.Cells["Severity"].Value);
+                var state = Convert.ToString(row.Cells["State"].Value);
+
+                if (string.Equals(state, Constants.AlarmAcknowledged, StringComparison.OrdinalIgnoreCase))
+                {
+                    row.DefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(70, 80, 95);
+                    row.DefaultCellStyle.ForeColor = UiHelper.ForeColor;
+                }
+                else if (string.Equals(severity, "Critical", StringComparison.OrdinalIgnoreCase))
+                {
+                    row.DefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(110, 40, 40);
+                    row.DefaultCellStyle.ForeColor = System.Drawing.Color.White;
+                }
+                else if (string.Equals(severity, "Warning", StringComparison.OrdinalIgnoreCase))
+                {
+                    row.DefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(110, 85, 35);
+                    row.DefaultCellStyle.ForeColor = System.Drawing.Color.White;
+                }
             }
         }
     }

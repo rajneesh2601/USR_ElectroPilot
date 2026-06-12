@@ -188,11 +188,15 @@ namespace USR_ElectroPilot.Forms
             this.alarmGrid.AllowUserToAddRows = false;
             this.alarmGrid.AllowUserToDeleteRows = false;
             this.alarmGrid.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.alarmGrid.BackgroundColor = System.Drawing.Color.FromArgb(34, 40, 49);
             this.alarmGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.alarmGrid.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.alarmGrid.EnableHeadersVisualStyles = false;
             this.alarmGrid.Location = new System.Drawing.Point(0, 0);
             this.alarmGrid.Name = "alarmGrid";
             this.alarmGrid.ReadOnly = true;
+            this.alarmGrid.RowHeadersVisible = false;
+            this.alarmGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.alarmGrid.Size = new System.Drawing.Size(1096, 512);
             this.alarmGrid.TabIndex = 0;
             // 

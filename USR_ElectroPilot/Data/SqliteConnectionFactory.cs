@@ -10,7 +10,7 @@ namespace USR_ElectroPilot.Data
 
         public static string DatabaseDirectory
         {
-            get { return Path.Combine(GetApplicationRoot(), "Database"); }
+            get { return Path.Combine(GetProjectRoot(), "Database"); }
         }
 
         public static string DatabasePath
@@ -26,13 +26,13 @@ namespace USR_ElectroPilot.Data
                 "Data Source=" + DatabasePath + ";Version=3;Foreign Keys=True;Journal Mode=WAL;");
         }
 
-        private static string GetApplicationRoot()
+        private static string GetProjectRoot()
         {
             var directory = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
 
             while (directory != null)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "USR_ElectroPilot.slnx")))
+                if (File.Exists(Path.Combine(directory.FullName, "USR_ElectroPilot.csproj")))
                 {
                     return directory.FullName;
                 }

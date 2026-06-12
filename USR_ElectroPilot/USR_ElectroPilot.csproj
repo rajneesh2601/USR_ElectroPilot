@@ -55,45 +55,19 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
-    <Compile Include="..\Data\DatabaseHelper.cs">
-      <Link>Data\DatabaseHelper.cs</Link>
-    </Compile>
-    <Compile Include="..\Data\SqliteConnectionFactory.cs">
-      <Link>Data\SqliteConnectionFactory.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\AlarmModel.cs">
-      <Link>Models\AlarmModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\AuditLogModel.cs">
-      <Link>Models\AuditLogModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\LoadModel.cs">
-      <Link>Models\LoadModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\RecipeModel.cs">
-      <Link>Models\RecipeModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\ShiftReportModel.cs">
-      <Link>Models\ShiftReportModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\SystemSettingModel.cs">
-      <Link>Models\SystemSettingModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\TankHistoryModel.cs">
-      <Link>Models\TankHistoryModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\TankModel.cs">
-      <Link>Models\TankModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\UserActivityModel.cs">
-      <Link>Models\UserActivityModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\UserModel.cs">
-      <Link>Models\UserModel.cs</Link>
-    </Compile>
-    <Compile Include="..\Models\WagonModel.cs">
-      <Link>Models\WagonModel.cs</Link>
-    </Compile>
+    <Compile Include="Data\DatabaseHelper.cs" />
+    <Compile Include="Data\SqliteConnectionFactory.cs" />
+    <Compile Include="Models\AlarmModel.cs" />
+    <Compile Include="Models\AuditLogModel.cs" />
+    <Compile Include="Models\LoadModel.cs" />
+    <Compile Include="Models\RecipeModel.cs" />
+    <Compile Include="Models\ShiftReportModel.cs" />
+    <Compile Include="Models\SystemSettingModel.cs" />
+    <Compile Include="Models\TankHistoryModel.cs" />
+    <Compile Include="Models\TankModel.cs" />
+    <Compile Include="Models\UserActivityModel.cs" />
+    <Compile Include="Models\UserModel.cs" />
+    <Compile Include="Models\WagonModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">

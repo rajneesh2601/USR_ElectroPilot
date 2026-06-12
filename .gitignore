@@ -26,6 +26,9 @@ packages/
 Database/*.db
 Database/*.db-shm
 Database/*.db-wal
+USR_ElectroPilot/Database/*.db
+USR_ElectroPilot/Database/*.db-shm
+USR_ElectroPilot/Database/*.db-wal
 
 # Log files
 *.log

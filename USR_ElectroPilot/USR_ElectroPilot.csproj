@@ -89,8 +89,18 @@
     <Compile Include="Models\PlantStatusModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\AlarmService.cs" />
     <Compile Include="Services\AuthService.cs" />
+    <Compile Include="Services\DashboardService.cs" />
+    <Compile Include="Services\LoadService.cs" />
+    <Compile Include="Services\RecipeService.cs" />
+    <Compile Include="Services\RectifierService.cs" />
+    <Compile Include="Services\ReportService.cs" />
+    <Compile Include="Services\ShiftReportService.cs" />
+    <Compile Include="Services\SimulatorService.cs" />
+    <Compile Include="Services\TankService.cs" />
     <Compile Include="Services\UserActivityService.cs" />
+    <Compile Include="Services\WagonService.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

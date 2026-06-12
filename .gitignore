@@ -1,0 +1,49 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+out/
+
+# NuGet packages (restore on build)
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+
+# SQLite database file (do not commit live DB)
+Database/*.db
+Database/*.db-shm
+Database/*.db-wal
+
+# Log files
+*.log
+Logs/
+
+# Backup files
+*.bak
+*.tmp
+*.temp
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Publish output
+publish/
+PublishOutput/
+
+# Crash dumps
+*.dmp

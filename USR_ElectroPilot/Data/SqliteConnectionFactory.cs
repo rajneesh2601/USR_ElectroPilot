@@ -6,16 +6,19 @@ namespace USR_ElectroPilot.Data
 {
     public static class SqliteConnectionFactory
     {
-        public const string DatabaseFileName = "usr_electropilot.db";
+        private static readonly string _dbPath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "Database",
+            "usr_electropilot.db");
 
         public static string DatabaseDirectory
         {
-            get { return Path.Combine(GetProjectRoot(), "Database"); }
+            get { return Path.GetDirectoryName(_dbPath); }
         }
 
         public static string DatabasePath
         {
-            get { return Path.Combine(DatabaseDirectory, DatabaseFileName); }
+            get { return _dbPath; }
         }
 
         public static SQLiteConnection CreateConnection()
@@ -26,21 +29,5 @@ namespace USR_ElectroPilot.Data
                 "Data Source=" + DatabasePath + ";Version=3;Foreign Keys=True;Journal Mode=WAL;");
         }
 
-        private static string GetProjectRoot()
-        {
-            var directory = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
-
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "USR_ElectroPilot.csproj")))
-                {
-                    return directory.FullName;
-                }
-
-                directory = directory.Parent;
-            }
-
-            return AppDomain.CurrentDomain.BaseDirectory;
-        }
     }
 }

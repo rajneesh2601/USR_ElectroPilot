@@ -108,6 +108,15 @@ namespace USR_ElectroPilot.Data
                     UpdatedAt TEXT NOT NULL DEFAULT (datetime('now')),
                     FOREIGN KEY (CurrentTankId) REFERENCES Tanks(Id)
                 );",
+                @"CREATE TABLE IF NOT EXISTS Rectifiers (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL UNIQUE,
+                    Voltage REAL NOT NULL DEFAULT 0,
+                    CurrentAmps REAL NOT NULL DEFAULT 0,
+                    IsRunning INTEGER NOT NULL DEFAULT 0,
+                    FaultCode TEXT NULL,
+                    UpdatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+                );",
                 @"CREATE TABLE IF NOT EXISTS Alarms (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
                     Source TEXT NOT NULL,

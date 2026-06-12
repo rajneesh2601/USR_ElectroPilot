@@ -17,7 +17,7 @@
 | viewer   | view123   | Operator   |
 
 ## Database
-Auto-created at: `USR_ElectroPilot/Database/usr_electropilot.db`
+Auto-created at runtime under `USR_ElectroPilot/bin/Debug/Database/usr_electropilot.db`
 
 ## How to Run
 1. Open `USR_ElectroPilot.slnx` in Visual Studio 2022

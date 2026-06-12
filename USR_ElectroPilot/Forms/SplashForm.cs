@@ -45,6 +45,13 @@ namespace USR_ElectroPilot.Forms
                 _progress = 100;
                 progressTimer.Stop();
                 lblStatus.Text = "Ready";
+
+                using (var loginForm = new LoginForm())
+                {
+                    Hide();
+                    loginForm.ShowDialog(this);
+                    Close();
+                }
             }
             else if (_progress >= 70)
             {

@@ -67,6 +67,13 @@
     <Compile Include="Data\TankRepository.cs" />
     <Compile Include="Data\UserRepository.cs" />
     <Compile Include="Data\WagonRepository.cs" />
+    <Compile Include="Helpers\AppSession.cs" />
+    <Compile Include="Helpers\Constants.cs" />
+    <Compile Include="Helpers\CsvExporter.cs" />
+    <Compile Include="Helpers\Logger.cs" />
+    <Compile Include="Helpers\PasswordHelper.cs" />
+    <Compile Include="Helpers\RandomGenerator.cs" />
+    <Compile Include="Helpers\UiHelper.cs" />
     <Compile Include="Models\AlarmModel.cs" />
     <Compile Include="Models\AuditLogModel.cs" />
     <Compile Include="Models\LoadModel.cs" />

@@ -5,6 +5,9 @@ namespace USR_ElectroPilot.Forms
         private System.ComponentModel.IContainer components = null;
         private System.Windows.Forms.ToolStrip toolStrip;
         private System.Windows.Forms.ToolStripButton btnRefresh;
+        private System.Windows.Forms.ToolStripButton btnAddTank;
+        private System.Windows.Forms.ToolStripButton btnEditTank;
+        private System.Windows.Forms.ToolStripButton btnRemoveTank;
         private System.Windows.Forms.ToolStripButton btnLogout;
         private System.Windows.Forms.ToolStripLabel lblUser;
         private System.Windows.Forms.FlowLayoutPanel pnlStatus;
@@ -33,6 +36,9 @@ namespace USR_ElectroPilot.Forms
         {
             this.toolStrip = new System.Windows.Forms.ToolStrip();
             this.btnRefresh = new System.Windows.Forms.ToolStripButton();
+            this.btnAddTank = new System.Windows.Forms.ToolStripButton();
+            this.btnEditTank = new System.Windows.Forms.ToolStripButton();
+            this.btnRemoveTank = new System.Windows.Forms.ToolStripButton();
             this.btnLogout = new System.Windows.Forms.ToolStripButton();
             this.lblUser = new System.Windows.Forms.ToolStripLabel();
             this.pnlStatus = new System.Windows.Forms.FlowLayoutPanel();
@@ -59,6 +65,9 @@ namespace USR_ElectroPilot.Forms
             // 
             this.toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnRefresh,
+            this.btnAddTank,
+            this.btnEditTank,
+            this.btnRemoveTank,
             this.btnLogout,
             this.lblUser});
             this.toolStrip.Location = new System.Drawing.Point(0, 0);
@@ -73,6 +82,30 @@ namespace USR_ElectroPilot.Forms
             this.btnRefresh.Size = new System.Drawing.Size(50, 22);
             this.btnRefresh.Text = "Refresh";
             this.btnRefresh.Click += new System.EventHandler(this.BtnRefresh_Click);
+            // 
+            // btnAddTank
+            // 
+            this.btnAddTank.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnAddTank.Name = "btnAddTank";
+            this.btnAddTank.Size = new System.Drawing.Size(61, 22);
+            this.btnAddTank.Text = "Add Tank";
+            this.btnAddTank.Click += new System.EventHandler(this.BtnAddTank_Click);
+            // 
+            // btnEditTank
+            // 
+            this.btnEditTank.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnEditTank.Name = "btnEditTank";
+            this.btnEditTank.Size = new System.Drawing.Size(59, 22);
+            this.btnEditTank.Text = "Edit Tank";
+            this.btnEditTank.Click += new System.EventHandler(this.BtnEditTank_Click);
+            // 
+            // btnRemoveTank
+            // 
+            this.btnRemoveTank.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnRemoveTank.Name = "btnRemoveTank";
+            this.btnRemoveTank.Size = new System.Drawing.Size(82, 22);
+            this.btnRemoveTank.Text = "Remove Tank";
+            this.btnRemoveTank.Click += new System.EventHandler(this.BtnRemoveTank_Click);
             // 
             // btnLogout
             // 

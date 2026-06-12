@@ -15,6 +15,7 @@ namespace USR_ElectroPilot.Forms
         private readonly RectifierService _rectifierService = new RectifierService();
         private readonly SimulatorService _simulatorService = new SimulatorService();
         private readonly AlarmService _alarmService = new AlarmService();
+        private TankModel _selectedTank;
 
         public MainForm()
         {
@@ -39,6 +40,52 @@ namespace USR_ElectroPilot.Forms
         {
             new AuthService().Logout();
             Close();
+        }
+
+        private void BtnAddTank_Click(object sender, EventArgs e)
+        {
+            using (var form = new TankEditForm())
+            {
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    _tankService.AddTank(form.Tank);
+                    RefreshDashboard();
+                }
+            }
+        }
+
+        private void BtnEditTank_Click(object sender, EventArgs e)
+        {
+            if (_selectedTank == null)
+            {
+                MessageBox.Show("Select a tank first.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var form = new TankEditForm(_selectedTank))
+            {
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    _tankService.UpdateTank(form.Tank);
+                    RefreshDashboard();
+                }
+            }
+        }
+
+        private void BtnRemoveTank_Click(object sender, EventArgs e)
+        {
+            if (_selectedTank == null)
+            {
+                MessageBox.Show("Select a tank first.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (MessageBox.Show("Remove " + _selectedTank.Name + "?", Constants.ApplicationName, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+            {
+                _tankService.DeleteTank(_selectedTank.Id);
+                _selectedTank = null;
+                RefreshDashboard();
+            }
         }
 
         private void RefreshDashboard()
@@ -113,7 +160,9 @@ namespace USR_ElectroPilot.Forms
             pnlTanks.Controls.Clear();
             foreach (var tank in _tankService.GetTanks())
             {
-                pnlTanks.Controls.Add(new TankControl { Tank = tank, Margin = new Padding(8) });
+                var tankControl = new TankControl { Tank = tank, Margin = new Padding(8) };
+                tankControl.Click += delegate { _selectedTank = tank; };
+                pnlTanks.Controls.Add(tankControl);
             }
         }
 

@@ -134,6 +134,12 @@
     <Compile Include="Forms\AlarmHistoryForm.Designer.cs">
       <DependentUpon>AlarmHistoryForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\RecipeForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\RecipeForm.Designer.cs">
+      <DependentUpon>RecipeForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\Admin\AdminPanelForm.cs">
       <SubType>Form</SubType>
     </Compile>

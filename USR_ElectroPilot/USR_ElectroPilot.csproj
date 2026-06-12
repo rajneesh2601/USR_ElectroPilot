@@ -56,6 +56,15 @@
     <Compile Include="Controls\TankControl.Designer.cs">
       <DependentUpon>TankControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\RectifierControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\RectifierControl.Designer.cs">
+      <DependentUpon>RectifierControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\StatusCardControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Controls\WagonControl.cs">
       <SubType>UserControl</SubType>
     </Compile>

@@ -128,6 +128,12 @@
     <Compile Include="Forms\TankEditForm.Designer.cs">
       <DependentUpon>TankEditForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\Admin\AdminPanelForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\Admin\AdminPanelForm.Designer.cs">
+      <DependentUpon>AdminPanelForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Services\AlarmService.cs" />
     <Compile Include="Services\AuthService.cs" />
     <Compile Include="Services\DashboardService.cs" />

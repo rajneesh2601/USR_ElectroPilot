@@ -50,6 +50,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\DatabaseHelper.cs" />
+    <Compile Include="Controls\TankControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controls\TankControl.Designer.cs">
+      <DependentUpon>TankControl.cs</DependentUpon>
+    </Compile>
     <Compile Include="Data\AlarmRepository.cs" />
     <Compile Include="Data\AuditRepository.cs" />
     <Compile Include="Data\LoadRepository.cs" />

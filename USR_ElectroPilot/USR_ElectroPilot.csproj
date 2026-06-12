@@ -56,7 +56,17 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\DatabaseHelper.cs" />
+    <Compile Include="Data\AlarmRepository.cs" />
+    <Compile Include="Data\AuditRepository.cs" />
+    <Compile Include="Data\LoadRepository.cs" />
+    <Compile Include="Data\RecipeRepository.cs" />
+    <Compile Include="Data\RectifierRepository.cs" />
+    <Compile Include="Data\ShiftReportRepository.cs" />
     <Compile Include="Data\SqliteConnectionFactory.cs" />
+    <Compile Include="Data\SystemSettingRepository.cs" />
+    <Compile Include="Data\TankRepository.cs" />
+    <Compile Include="Data\UserRepository.cs" />
+    <Compile Include="Data\WagonRepository.cs" />
     <Compile Include="Models\AlarmModel.cs" />
     <Compile Include="Models\AuditLogModel.cs" />
     <Compile Include="Models\LoadModel.cs" />

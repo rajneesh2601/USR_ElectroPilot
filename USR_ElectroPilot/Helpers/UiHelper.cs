@@ -36,5 +36,25 @@ namespace USR_ElectroPilot.Helpers
                 adminControl.Visible = adminControl.Enabled;
             }
         }
+
+        public static void ApplyRoleRestrictions(params ToolStripItem[] adminItems)
+        {
+            var allowed = AppSession.HasRole(Constants.RoleAdmin, Constants.RoleSupervisor);
+
+            if (adminItems == null)
+            {
+                return;
+            }
+
+            foreach (var item in adminItems)
+            {
+                if (item != null)
+                {
+                    item.Enabled = allowed;
+                    item.Available = allowed;
+                    item.Visible = allowed;
+                }
+            }
+        }
     }
 }

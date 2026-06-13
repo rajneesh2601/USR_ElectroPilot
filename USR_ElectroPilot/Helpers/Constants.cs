@@ -15,6 +15,7 @@ namespace USR_ElectroPilot.Helpers
         public const string AlarmShelved = "Shelved";
 
         public const string StatusNormal = "Normal";
+        public const string StatusRunning = "Running";
         public const string StatusWarning = "Warning";
         public const string StatusFault = "Fault";
 

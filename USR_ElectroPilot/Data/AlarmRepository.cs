@@ -53,6 +53,23 @@ namespace USR_ElectroPilot.Data
             }
         }
 
+        public void AcknowledgeActive(string username)
+        {
+            using (var connection = SqliteConnectionFactory.CreateConnection())
+            using (var command = new SQLiteCommand(
+                @"UPDATE Alarms
+                  SET State = 'Acknowledged',
+                      AcknowledgedAt = datetime('now'),
+                      AcknowledgedBy = @AcknowledgedBy
+                  WHERE State = 'Active';",
+                connection))
+            {
+                command.Parameters.AddWithValue("@AcknowledgedBy", username);
+                connection.Open();
+                command.ExecuteNonQuery();
+            }
+        }
+
         private static List<AlarmModel> Query(string sql)
         {
             var alarms = new List<AlarmModel>();

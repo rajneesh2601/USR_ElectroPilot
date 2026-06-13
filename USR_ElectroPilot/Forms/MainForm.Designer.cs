@@ -8,8 +8,13 @@ namespace USR_ElectroPilot.Forms
         private System.Windows.Forms.ToolStripButton btnAddTank;
         private System.Windows.Forms.ToolStripButton btnEditTank;
         private System.Windows.Forms.ToolStripButton btnRemoveTank;
+        private System.Windows.Forms.ToolStripButton btnStartAll;
+        private System.Windows.Forms.ToolStripButton btnStopAll;
+        private System.Windows.Forms.ToolStripButton btnResetAlarms;
         private System.Windows.Forms.ToolStripButton btnLogout;
         private System.Windows.Forms.ToolStripLabel lblUser;
+        private System.Windows.Forms.ToolStripLabel lblClock;
+        private System.Windows.Forms.ToolStripLabel lblPlantStatus;
         private System.Windows.Forms.FlowLayoutPanel pnlStatus;
         private System.Windows.Forms.TabControl tabs;
         private System.Windows.Forms.TabPage tabTanks;
@@ -41,8 +46,13 @@ namespace USR_ElectroPilot.Forms
             this.btnAddTank = new System.Windows.Forms.ToolStripButton();
             this.btnEditTank = new System.Windows.Forms.ToolStripButton();
             this.btnRemoveTank = new System.Windows.Forms.ToolStripButton();
+            this.btnStartAll = new System.Windows.Forms.ToolStripButton();
+            this.btnStopAll = new System.Windows.Forms.ToolStripButton();
+            this.btnResetAlarms = new System.Windows.Forms.ToolStripButton();
             this.btnLogout = new System.Windows.Forms.ToolStripButton();
             this.lblUser = new System.Windows.Forms.ToolStripLabel();
+            this.lblClock = new System.Windows.Forms.ToolStripLabel();
+            this.lblPlantStatus = new System.Windows.Forms.ToolStripLabel();
             this.pnlStatus = new System.Windows.Forms.FlowLayoutPanel();
             this.tabs = new System.Windows.Forms.TabControl();
             this.tabTanks = new System.Windows.Forms.TabPage();
@@ -73,8 +83,13 @@ namespace USR_ElectroPilot.Forms
                 this.btnAddTank,
                 this.btnEditTank,
                 this.btnRemoveTank,
+                this.btnStartAll,
+                this.btnStopAll,
+                this.btnResetAlarms,
                 this.btnLogout,
-                this.lblUser
+                this.lblUser,
+                this.lblClock,
+                this.lblPlantStatus
             });
             this.toolStrip.Location = new System.Drawing.Point(0, 0);
             this.toolStrip.Name = "toolStrip";
@@ -118,6 +133,33 @@ namespace USR_ElectroPilot.Forms
             this.btnRemoveTank.Click += new System.EventHandler(this.BtnRemoveTank_Click);
 
             // 
+            // btnStartAll
+            // 
+            this.btnStartAll.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnStartAll.Name = "btnStartAll";
+            this.btnStartAll.Size = new System.Drawing.Size(51, 22);
+            this.btnStartAll.Text = "Start All";
+            this.btnStartAll.Click += new System.EventHandler(this.BtnStartAll_Click);
+
+            // 
+            // btnStopAll
+            // 
+            this.btnStopAll.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnStopAll.Name = "btnStopAll";
+            this.btnStopAll.Size = new System.Drawing.Size(50, 22);
+            this.btnStopAll.Text = "Stop All";
+            this.btnStopAll.Click += new System.EventHandler(this.BtnStopAll_Click);
+
+            // 
+            // btnResetAlarms
+            // 
+            this.btnResetAlarms.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnResetAlarms.Name = "btnResetAlarms";
+            this.btnResetAlarms.Size = new System.Drawing.Size(75, 22);
+            this.btnResetAlarms.Text = "Reset Alarms";
+            this.btnResetAlarms.Click += new System.EventHandler(this.BtnResetAlarms_Click);
+
+            // 
             // btnLogout
             // 
             this.btnLogout.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
@@ -133,6 +175,22 @@ namespace USR_ElectroPilot.Forms
             this.lblUser.Name = "lblUser";
             this.lblUser.Size = new System.Drawing.Size(29, 22);
             this.lblUser.Text = "User";
+
+            // 
+            // lblClock
+            // 
+            this.lblClock.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
+            this.lblClock.Name = "lblClock";
+            this.lblClock.Size = new System.Drawing.Size(34, 22);
+            this.lblClock.Text = "Clock";
+
+            // 
+            // lblPlantStatus
+            // 
+            this.lblPlantStatus.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
+            this.lblPlantStatus.Name = "lblPlantStatus";
+            this.lblPlantStatus.Size = new System.Drawing.Size(70, 22);
+            this.lblPlantStatus.Text = "Plant: Ready";
 
             // 
             // pnlStatus

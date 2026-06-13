@@ -24,6 +24,9 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
   - `TrendForm`
 - Added `System.Windows.Forms.DataVisualization` chart support for trends.
 - Fixed the `MainForm` timer crash by initializing the WinForms component container before constructing `simulatorTimer`.
+- Added SCADA operations from `ch.txt`: Start All, Stop All, Reset Alarms, per-tank Start/Stop/Fault/Reset/Remove buttons, live clock, and plant status label.
+- Added default seed creation for tanks `T1` through `T10` when the tank table is empty.
+- Updated simulator behavior so running tanks persist live values and generate warning/fault alarms.
 
 ## Latest verified commits
 
@@ -36,10 +39,12 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - `31553b4 feat: apply role-based UI restrictions`
 - `18c925f style: apply dark industrial theme to all forms`
 - `292a9b1 fix: resolve all compile errors and warnings`
+- This follow-up change adds SCADA operation controls from `ch.txt`.
 
 ## Release verification
 
 - Debug build passes with 0 warnings and 0 errors.
 - Release build passes with 0 warnings and 0 errors.
 - Final smoke test covers database initialization, `MainForm` construction, and CSV export.
-- Next release step is the final `v1.0.0` commit, merge to `main`, and tag push.
+- `ch.txt` follow-up smoke test covers default tank seeding, tank start/fault/reset flow, active alarm reset, and `TankControl` operation buttons.
+- `v1.0.0` was published before the `ch.txt` follow-up additions.

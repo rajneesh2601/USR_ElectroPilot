@@ -10,10 +10,17 @@ namespace USR_ElectroPilot.Controls
     {
         private TankModel _tank;
 
+        public event EventHandler<TankControlEventArgs> StartClicked;
+        public event EventHandler<TankControlEventArgs> StopClicked;
+        public event EventHandler<TankControlEventArgs> FaultClicked;
+        public event EventHandler<TankControlEventArgs> ResetClicked;
+        public event EventHandler<TankControlEventArgs> RemoveClicked;
+
         public TankControl()
         {
             InitializeComponent();
             DoubleBuffered = true;
+            ConfigureButtons();
         }
 
         public TankModel Tank
@@ -24,6 +31,11 @@ namespace USR_ElectroPilot.Controls
                 _tank = value;
                 Invalidate();
             }
+        }
+
+        public void BindTank(TankModel tank)
+        {
+            Tank = tank;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -46,7 +58,7 @@ namespace USR_ElectroPilot.Controls
                 e.Graphics.DrawString(title, new Font("Segoe UI Semibold", 10F, FontStyle.Bold), titleBrush, 10, 8);
                 e.Graphics.DrawString(chemical, UiHelper.DefaultFont, mutedBrush, 10, 30);
 
-                var tankRect = new Rectangle(18, 58, Width - 36, Height - 100);
+                var tankRect = new Rectangle(18, 58, Width - 36, Height - 130);
                 e.Graphics.DrawRectangle(borderPen, tankRect);
 
                 var fillHeight = Convert.ToInt32(tankRect.Height * levelPercent);
@@ -61,7 +73,56 @@ namespace USR_ElectroPilot.Controls
                     ? status
                     : string.Format("{0:0.0} C  {1:0.0} V  {2:0.0} A", _tank.TemperatureCelsius, _tank.Voltage, _tank.CurrentAmps);
 
-                e.Graphics.DrawString(footer, UiHelper.DefaultFont, mutedBrush, 10, Height - 32);
+                e.Graphics.DrawString(status, UiHelper.DefaultFont, titleBrush, 10, Height - 78);
+                e.Graphics.DrawString(footer, UiHelper.DefaultFont, mutedBrush, 10, Height - 60);
+            }
+        }
+
+        private void BtnStart_Click(object sender, EventArgs e)
+        {
+            OnTankAction(StartClicked);
+        }
+
+        private void BtnStop_Click(object sender, EventArgs e)
+        {
+            OnTankAction(StopClicked);
+        }
+
+        private void BtnFault_Click(object sender, EventArgs e)
+        {
+            OnTankAction(FaultClicked);
+        }
+
+        private void BtnReset_Click(object sender, EventArgs e)
+        {
+            OnTankAction(ResetClicked);
+        }
+
+        private void BtnRemove_Click(object sender, EventArgs e)
+        {
+            OnTankAction(RemoveClicked);
+        }
+
+        private void OnTankAction(EventHandler<TankControlEventArgs> handler)
+        {
+            if (handler != null && _tank != null)
+            {
+                handler(this, new TankControlEventArgs(_tank.Id));
+            }
+        }
+
+        private void ConfigureButtons()
+        {
+            foreach (Control control in Controls)
+            {
+                var button = control as Button;
+                if (button != null)
+                {
+                    button.BackColor = Color.FromArgb(48, 58, 72);
+                    button.ForeColor = UiHelper.ForeColor;
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderColor = Color.FromArgb(74, 88, 108);
+                }
             }
         }
 
@@ -93,6 +154,11 @@ namespace USR_ElectroPilot.Controls
                 return Color.FromArgb(240, 180, 60);
             }
 
+            if (string.Equals(status, Constants.StatusRunning, StringComparison.OrdinalIgnoreCase))
+            {
+                return Color.FromArgb(100, 210, 120);
+            }
+
             return UiHelper.AccentColor;
         }
 
@@ -101,5 +167,15 @@ namespace USR_ElectroPilot.Controls
             var color = GetStatusColor(status);
             return Color.FromArgb(190, color);
         }
+    }
+
+    public class TankControlEventArgs : EventArgs
+    {
+        public TankControlEventArgs(int tankId)
+        {
+            TankId = tankId;
+        }
+
+        public int TankId { get; private set; }
     }
 }

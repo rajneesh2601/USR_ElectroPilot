@@ -28,6 +28,7 @@ namespace USR_ElectroPilot.Data
 
                     SeedDefaultUsers(connection, transaction);
                     SeedSystemSettings(connection, transaction);
+                    SeedDefaultTanks(connection, transaction);
 
                     transaction.Commit();
                 }
@@ -212,6 +213,39 @@ namespace USR_ElectroPilot.Data
                     command.Parameters.AddWithValue("@SettingKey", setting.Key);
                     command.Parameters.AddWithValue("@SettingValue", setting.Value);
                     command.Parameters.AddWithValue("@Description", setting.Description);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private static void SeedDefaultTanks(SQLiteConnection connection, SQLiteTransaction transaction)
+        {
+            using (var countCommand = new SQLiteCommand("SELECT COUNT(1) FROM Tanks;", connection, transaction))
+            {
+                if (Convert.ToInt32(countCommand.ExecuteScalar()) > 0)
+                {
+                    return;
+                }
+            }
+
+            for (var tankNumber = 1; tankNumber <= 10; tankNumber++)
+            {
+                using (var command = new SQLiteCommand(
+                    @"INSERT INTO Tanks (TankNumber, Name, ChemicalName, CapacityLiters, CurrentLevelLiters, TemperatureCelsius, Voltage, CurrentAmps, Status, IsActive)
+                      VALUES (@TankNumber, @Name, @ChemicalName, @CapacityLiters, @CurrentLevelLiters, @TemperatureCelsius, @Voltage, @CurrentAmps, @Status, @IsActive);",
+                    connection,
+                    transaction))
+                {
+                    command.Parameters.AddWithValue("@TankNumber", tankNumber);
+                    command.Parameters.AddWithValue("@Name", "T" + tankNumber);
+                    command.Parameters.AddWithValue("@ChemicalName", "Process Chemical");
+                    command.Parameters.AddWithValue("@CapacityLiters", 1000);
+                    command.Parameters.AddWithValue("@CurrentLevelLiters", 750);
+                    command.Parameters.AddWithValue("@TemperatureCelsius", 35);
+                    command.Parameters.AddWithValue("@Voltage", 12);
+                    command.Parameters.AddWithValue("@CurrentAmps", 100);
+                    command.Parameters.AddWithValue("@Status", "Normal");
+                    command.Parameters.AddWithValue("@IsActive", 1);
                     command.ExecuteNonQuery();
                 }
             }

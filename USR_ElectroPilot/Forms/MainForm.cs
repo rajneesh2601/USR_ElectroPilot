@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using USR_ElectroPilot.Controls;
 using USR_ElectroPilot.Helpers;
@@ -29,6 +30,7 @@ namespace USR_ElectroPilot.Forms
             UiHelper.ApplyRoleRestrictions(btnAddTank, btnEditTank, btnRemoveTank);
             Text = Constants.ApplicationName + " - " + AppSession.Username;
             lblUser.Text = AppSession.Username + " (" + AppSession.Role + ")";
+            UpdateHeaderIndicators(null);
             RefreshDashboard();
             simulatorTimer.Start();
         }
@@ -90,11 +92,40 @@ namespace USR_ElectroPilot.Forms
             }
         }
 
+        private void BtnStartAll_Click(object sender, EventArgs e)
+        {
+            _tankService.StartAllTanks();
+            RefreshDashboard();
+        }
+
+        private void BtnStopAll_Click(object sender, EventArgs e)
+        {
+            _tankService.StopAllTanks();
+            RefreshDashboard();
+        }
+
+        private void BtnResetAlarms_Click(object sender, EventArgs e)
+        {
+            _alarmService.ResetActiveAlarms();
+
+            foreach (var tank in _tankService.GetTanks())
+            {
+                if (string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(tank.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase))
+                {
+                    _tankService.ResetTank(tank);
+                }
+            }
+
+            RefreshDashboard();
+        }
+
         private void RefreshDashboard()
         {
             try
             {
                 var status = _dashboardService.GetPlantStatus();
+                UpdateHeaderIndicators(status);
                 LoadStatusCards(status);
                 LoadTanks();
                 LoadWagons();
@@ -110,17 +141,21 @@ namespace USR_ElectroPilot.Forms
 
         private void SimulatorTimer_Tick(object sender, EventArgs e)
         {
-            var tanks = new System.Collections.Generic.List<TankModel>();
+            UpdateHeaderIndicators(null);
+
+            var tanks = new List<TankModel>();
+            var previousStatuses = new Dictionary<int, string>();
             foreach (Control control in pnlTanks.Controls)
             {
                 var tankControl = control as TankControl;
                 if (tankControl != null && tankControl.Tank != null)
                 {
+                    previousStatuses[tankControl.Tank.Id] = tankControl.Tank.Status;
                     tanks.Add(tankControl.Tank);
                 }
             }
 
-            var rectifiers = new System.Collections.Generic.List<RectifierModel>();
+            var rectifiers = new List<RectifierModel>();
             foreach (Control control in pnlRectifiers.Controls)
             {
                 var rectifierControl = control as RectifierControl;
@@ -133,8 +168,15 @@ namespace USR_ElectroPilot.Forms
             _simulatorService.SimulateTanks(tanks);
             _simulatorService.SimulateRectifiers(rectifiers);
 
+            foreach (var tank in tanks)
+            {
+                _tankService.UpdateTank(tank);
+                RaiseStateAlarmIfNeeded(tank, previousStatuses.ContainsKey(tank.Id) ? previousStatuses[tank.Id] : string.Empty);
+            }
+
             pnlTanks.Invalidate(true);
             pnlRectifiers.Invalidate(true);
+            LoadAlarms();
         }
 
         private void LoadStatusCards(PlantStatusModel status)
@@ -162,8 +204,14 @@ namespace USR_ElectroPilot.Forms
             pnlTanks.Controls.Clear();
             foreach (var tank in _tankService.GetTanks())
             {
-                var tankControl = new TankControl { Tank = tank, Margin = new Padding(8) };
+                var tankControl = new TankControl { Margin = new Padding(8) };
+                tankControl.BindTank(tank);
                 tankControl.Click += delegate { _selectedTank = tank; };
+                tankControl.StartClicked += TankControl_StartClicked;
+                tankControl.StopClicked += TankControl_StopClicked;
+                tankControl.FaultClicked += TankControl_FaultClicked;
+                tankControl.ResetClicked += TankControl_ResetClicked;
+                tankControl.RemoveClicked += TankControl_RemoveClicked;
                 pnlTanks.Controls.Add(tankControl);
             }
         }
@@ -215,6 +263,87 @@ namespace USR_ElectroPilot.Forms
                     row.DefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(110, 85, 35);
                     row.DefaultCellStyle.ForeColor = System.Drawing.Color.White;
                 }
+            }
+        }
+
+        private void TankControl_StartClicked(object sender, TankControlEventArgs e)
+        {
+            var tank = FindTank(e.TankId);
+            _tankService.StartTank(tank);
+            RefreshDashboard();
+        }
+
+        private void TankControl_StopClicked(object sender, TankControlEventArgs e)
+        {
+            var tank = FindTank(e.TankId);
+            _tankService.StopTank(tank);
+            RefreshDashboard();
+        }
+
+        private void TankControl_FaultClicked(object sender, TankControlEventArgs e)
+        {
+            var tank = FindTank(e.TankId);
+            _tankService.MarkTankFault(tank);
+            _alarmService.RaiseAlarm(tank.Name, "Critical", "Manual fault set by " + AppSession.Username);
+            RefreshDashboard();
+        }
+
+        private void TankControl_ResetClicked(object sender, TankControlEventArgs e)
+        {
+            var tank = FindTank(e.TankId);
+            _tankService.ResetTank(tank);
+            _alarmService.ResetActiveAlarms();
+            RefreshDashboard();
+        }
+
+        private void TankControl_RemoveClicked(object sender, TankControlEventArgs e)
+        {
+            var tank = FindTank(e.TankId);
+            if (MessageBox.Show("Remove " + tank.Name + "?", Constants.ApplicationName, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+            {
+                _tankService.DeleteTank(tank.Id);
+                _selectedTank = null;
+                RefreshDashboard();
+            }
+        }
+
+        private TankModel FindTank(int tankId)
+        {
+            foreach (var tank in _tankService.GetTanks())
+            {
+                if (tank.Id == tankId)
+                {
+                    return tank;
+                }
+            }
+
+            throw new InvalidOperationException("Tank not found: " + tankId);
+        }
+
+        private void RaiseStateAlarmIfNeeded(TankModel tank, string previousStatus)
+        {
+            if (string.Equals(tank.Status, previousStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase))
+            {
+                _alarmService.RaiseAlarm(tank.Name, "Critical", "Tank entered fault state.");
+            }
+            else if (string.Equals(tank.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase))
+            {
+                _alarmService.RaiseAlarm(tank.Name, "Warning", "Tank entered warning state.");
+            }
+        }
+
+        private void UpdateHeaderIndicators(PlantStatusModel status)
+        {
+            lblClock.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            if (status != null)
+            {
+                lblPlantStatus.Text = status.ActiveAlarmCount > 0 ? "Plant: Alarm" : "Plant: Normal";
             }
         }
     }

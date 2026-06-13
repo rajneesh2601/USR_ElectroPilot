@@ -21,6 +21,7 @@ namespace USR_ElectroPilot.Forms.Admin
         private void UserActivityForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridActivity, "user_activity");
             dtFrom.Value = DateTime.Today.AddDays(-7);
             dtTo.Value = DateTime.Today.AddDays(1).AddSeconds(-1);
             RefreshActivities();

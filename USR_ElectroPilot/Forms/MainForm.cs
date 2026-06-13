@@ -25,6 +25,7 @@ namespace USR_ElectroPilot.Forms
         private void MainForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(alarmGrid, "dashboard_alarms");
             Text = Constants.ApplicationName + " - " + AppSession.Username;
             lblUser.Text = AppSession.Username + " (" + AppSession.Role + ")";
             RefreshDashboard();

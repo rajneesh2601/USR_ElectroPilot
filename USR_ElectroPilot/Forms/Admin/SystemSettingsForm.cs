@@ -18,6 +18,7 @@ namespace USR_ElectroPilot.Forms.Admin
         private void SystemSettingsForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridSettings, "system_settings");
             RefreshSettings();
         }
 

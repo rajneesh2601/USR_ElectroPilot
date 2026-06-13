@@ -21,6 +21,7 @@ namespace USR_ElectroPilot.Forms
         private void LoadHistoryForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridLoads, "load_history");
             cboStatus.Items.AddRange(new object[] { "All", "Queued", "Running", "Complete", "Completed", "Cancelled", "Fault" });
             cboStatus.SelectedIndex = 0;
             dtFrom.Value = DateTime.Today.AddDays(-7);

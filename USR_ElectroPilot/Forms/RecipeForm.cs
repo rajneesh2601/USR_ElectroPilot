@@ -21,6 +21,7 @@ namespace USR_ElectroPilot.Forms
         private void RecipeForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridRecipes, "recipes");
             cboActiveFilter.Items.AddRange(new object[] { "All", "Active", "Inactive" });
             cboActiveFilter.SelectedIndex = 0;
             chkActive.Checked = true;

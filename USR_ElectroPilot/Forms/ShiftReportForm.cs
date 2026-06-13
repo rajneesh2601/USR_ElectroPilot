@@ -21,6 +21,7 @@ namespace USR_ElectroPilot.Forms
         private void ShiftReportForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridReports, "shift_reports");
             dtFilterFrom.Value = DateTime.Today.AddDays(-7);
             dtFilterTo.Value = DateTime.Today.AddDays(1).AddSeconds(-1);
             dtStarted.Value = DateTime.Now;

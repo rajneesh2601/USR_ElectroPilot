@@ -20,6 +20,7 @@ namespace USR_ElectroPilot.Forms.Admin
         private void UserManagementForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridUsers, "users");
             cboRole.Items.AddRange(new object[]
             {
                 Constants.RoleAdmin,

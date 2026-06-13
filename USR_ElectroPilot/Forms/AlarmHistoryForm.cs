@@ -21,6 +21,7 @@ namespace USR_ElectroPilot.Forms
         private void AlarmHistoryForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridAlarms, "alarm_history");
             cboSeverity.Items.AddRange(new object[] { "All", "Info", "Warning", "Critical" });
             cboState.Items.AddRange(new object[] { "All", Constants.AlarmActive, Constants.AlarmAcknowledged, Constants.AlarmShelved });
             cboSeverity.SelectedIndex = 0;

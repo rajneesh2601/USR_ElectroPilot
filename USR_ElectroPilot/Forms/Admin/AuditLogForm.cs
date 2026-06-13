@@ -21,6 +21,7 @@ namespace USR_ElectroPilot.Forms.Admin
         private void AuditLogForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            CsvExporter.AddExportButton(gridAudit, "audit_log");
             dtFrom.Value = DateTime.Today.AddDays(-30);
             dtTo.Value = DateTime.Today.AddDays(1).AddSeconds(-1);
             RefreshLogs();

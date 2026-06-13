@@ -34,6 +34,8 @@ namespace USR_ElectroPilot.Forms
 
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
+
             this.toolStrip = new System.Windows.Forms.ToolStrip();
             this.btnRefresh = new System.Windows.Forms.ToolStripButton();
             this.btnAddTank = new System.Windows.Forms.ToolStripButton();
@@ -52,6 +54,7 @@ namespace USR_ElectroPilot.Forms
             this.tabAlarms = new System.Windows.Forms.TabPage();
             this.alarmGrid = new System.Windows.Forms.DataGridView();
             this.simulatorTimer = new System.Windows.Forms.Timer(this.components);
+
             this.toolStrip.SuspendLayout();
             this.tabs.SuspendLayout();
             this.tabTanks.SuspendLayout();
@@ -60,20 +63,24 @@ namespace USR_ElectroPilot.Forms
             this.tabAlarms.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.alarmGrid)).BeginInit();
             this.SuspendLayout();
+
             // 
             // toolStrip
             // 
-            this.toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.btnRefresh,
-            this.btnAddTank,
-            this.btnEditTank,
-            this.btnRemoveTank,
-            this.btnLogout,
-            this.lblUser});
+            this.toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[]
+            {
+                this.btnRefresh,
+                this.btnAddTank,
+                this.btnEditTank,
+                this.btnRemoveTank,
+                this.btnLogout,
+                this.lblUser
+            });
             this.toolStrip.Location = new System.Drawing.Point(0, 0);
             this.toolStrip.Name = "toolStrip";
             this.toolStrip.Size = new System.Drawing.Size(1104, 25);
             this.toolStrip.TabIndex = 0;
+
             // 
             // btnRefresh
             // 
@@ -82,6 +89,7 @@ namespace USR_ElectroPilot.Forms
             this.btnRefresh.Size = new System.Drawing.Size(50, 22);
             this.btnRefresh.Text = "Refresh";
             this.btnRefresh.Click += new System.EventHandler(this.BtnRefresh_Click);
+
             // 
             // btnAddTank
             // 
@@ -90,6 +98,7 @@ namespace USR_ElectroPilot.Forms
             this.btnAddTank.Size = new System.Drawing.Size(61, 22);
             this.btnAddTank.Text = "Add Tank";
             this.btnAddTank.Click += new System.EventHandler(this.BtnAddTank_Click);
+
             // 
             // btnEditTank
             // 
@@ -98,6 +107,7 @@ namespace USR_ElectroPilot.Forms
             this.btnEditTank.Size = new System.Drawing.Size(59, 22);
             this.btnEditTank.Text = "Edit Tank";
             this.btnEditTank.Click += new System.EventHandler(this.BtnEditTank_Click);
+
             // 
             // btnRemoveTank
             // 
@@ -106,6 +116,7 @@ namespace USR_ElectroPilot.Forms
             this.btnRemoveTank.Size = new System.Drawing.Size(82, 22);
             this.btnRemoveTank.Text = "Remove Tank";
             this.btnRemoveTank.Click += new System.EventHandler(this.BtnRemoveTank_Click);
+
             // 
             // btnLogout
             // 
@@ -114,6 +125,7 @@ namespace USR_ElectroPilot.Forms
             this.btnLogout.Size = new System.Drawing.Size(49, 22);
             this.btnLogout.Text = "Logout";
             this.btnLogout.Click += new System.EventHandler(this.BtnLogout_Click);
+
             // 
             // lblUser
             // 
@@ -121,6 +133,7 @@ namespace USR_ElectroPilot.Forms
             this.lblUser.Name = "lblUser";
             this.lblUser.Size = new System.Drawing.Size(29, 22);
             this.lblUser.Text = "User";
+
             // 
             // pnlStatus
             // 
@@ -130,6 +143,7 @@ namespace USR_ElectroPilot.Forms
             this.pnlStatus.Padding = new System.Windows.Forms.Padding(8);
             this.pnlStatus.Size = new System.Drawing.Size(1104, 118);
             this.pnlStatus.TabIndex = 1;
+
             // 
             // tabs
             // 
@@ -143,6 +157,7 @@ namespace USR_ElectroPilot.Forms
             this.tabs.SelectedIndex = 0;
             this.tabs.Size = new System.Drawing.Size(1104, 538);
             this.tabs.TabIndex = 2;
+
             // 
             // tabTanks
             // 
@@ -154,6 +169,7 @@ namespace USR_ElectroPilot.Forms
             this.tabTanks.TabIndex = 0;
             this.tabTanks.Text = "Tanks";
             this.tabTanks.UseVisualStyleBackColor = true;
+
             // 
             // pnlTanks
             // 
@@ -164,6 +180,7 @@ namespace USR_ElectroPilot.Forms
             this.pnlTanks.Padding = new System.Windows.Forms.Padding(8);
             this.pnlTanks.Size = new System.Drawing.Size(1090, 506);
             this.pnlTanks.TabIndex = 0;
+
             // 
             // tabWagons
             // 
@@ -175,6 +192,7 @@ namespace USR_ElectroPilot.Forms
             this.tabWagons.TabIndex = 1;
             this.tabWagons.Text = "Wagons";
             this.tabWagons.UseVisualStyleBackColor = true;
+
             // 
             // pnlWagons
             // 
@@ -185,6 +203,7 @@ namespace USR_ElectroPilot.Forms
             this.pnlWagons.Padding = new System.Windows.Forms.Padding(8);
             this.pnlWagons.Size = new System.Drawing.Size(1090, 506);
             this.pnlWagons.TabIndex = 0;
+
             // 
             // tabRectifiers
             // 
@@ -195,6 +214,7 @@ namespace USR_ElectroPilot.Forms
             this.tabRectifiers.TabIndex = 2;
             this.tabRectifiers.Text = "Rectifiers";
             this.tabRectifiers.UseVisualStyleBackColor = true;
+
             // 
             // pnlRectifiers
             // 
@@ -205,6 +225,7 @@ namespace USR_ElectroPilot.Forms
             this.pnlRectifiers.Padding = new System.Windows.Forms.Padding(8);
             this.pnlRectifiers.Size = new System.Drawing.Size(1096, 512);
             this.pnlRectifiers.TabIndex = 0;
+
             // 
             // tabAlarms
             // 
@@ -215,6 +236,7 @@ namespace USR_ElectroPilot.Forms
             this.tabAlarms.TabIndex = 3;
             this.tabAlarms.Text = "Alarms";
             this.tabAlarms.UseVisualStyleBackColor = true;
+
             // 
             // alarmGrid
             // 
@@ -232,11 +254,13 @@ namespace USR_ElectroPilot.Forms
             this.alarmGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.alarmGrid.Size = new System.Drawing.Size(1096, 512);
             this.alarmGrid.TabIndex = 0;
+
             // 
             // simulatorTimer
             // 
             this.simulatorTimer.Interval = 1000;
             this.simulatorTimer.Tick += new System.EventHandler(this.SimulatorTimer_Tick);
+
             // 
             // MainForm
             // 
@@ -252,6 +276,7 @@ namespace USR_ElectroPilot.Forms
             this.Text = "USR ElectroPilot";
             this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             this.Load += new System.EventHandler(this.MainForm_Load);
+
             this.toolStrip.ResumeLayout(false);
             this.toolStrip.PerformLayout();
             this.tabs.ResumeLayout(false);

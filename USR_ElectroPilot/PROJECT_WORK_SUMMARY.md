@@ -32,11 +32,14 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - `df943d4 feat: add LoadHistoryForm`
 - `ddb14a4 feat: add ShiftReportForm`
 - `8aaf09e feat: add TrendForm with DataVisualization chart`
+- `9f9de57 feat: add CSV export to all forms`
+- `31553b4 feat: apply role-based UI restrictions`
+- `18c925f style: apply dark industrial theme to all forms`
+- `292a9b1 fix: resolve all compile errors and warnings`
 
-## Remaining prompt work
+## Release verification
 
-- Add CSV export to all forms with grids.
-- Apply role-based UI restrictions.
-- Confirm dark industrial theme across all forms.
-- Resolve final compile warnings/errors.
-- Final release commit and tag.
+- Debug build passes with 0 warnings and 0 errors.
+- Release build passes with 0 warnings and 0 errors.
+- Final smoke test covers database initialization, `MainForm` construction, and CSV export.
+- Next release step is the final `v1.0.0` commit, merge to `main`, and tag push.

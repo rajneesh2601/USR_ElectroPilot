@@ -18,9 +18,11 @@ namespace USR_ElectroPilot.Helpers
                 return;
             }
 
-            root.BackColor = BackColor;
+            root.BackColor = root is Panel || root is GroupBox ? PanelColor : BackColor;
             root.ForeColor = ForeColor;
             root.Font = DefaultFont;
+
+            ApplyControlSpecificTheme(root);
 
             foreach (Control child in root.Controls)
             {
@@ -54,6 +56,61 @@ namespace USR_ElectroPilot.Helpers
                     item.Available = allowed;
                     item.Visible = allowed;
                 }
+            }
+        }
+
+        private static void ApplyControlSpecificTheme(Control control)
+        {
+            var grid = control as DataGridView;
+            if (grid != null)
+            {
+                grid.BackgroundColor = BackColor;
+                grid.BorderStyle = BorderStyle.None;
+                grid.EnableHeadersVisualStyles = false;
+                grid.GridColor = Color.FromArgb(58, 68, 84);
+                grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(42, 50, 62);
+                grid.ColumnHeadersDefaultCellStyle.ForeColor = ForeColor;
+                grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = Color.FromArgb(42, 50, 62);
+                grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = ForeColor;
+                grid.DefaultCellStyle.BackColor = PanelColor;
+                grid.DefaultCellStyle.ForeColor = ForeColor;
+                grid.DefaultCellStyle.SelectionBackColor = AccentColor;
+                grid.DefaultCellStyle.SelectionForeColor = Color.White;
+                grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(30, 36, 44);
+                grid.RowHeadersDefaultCellStyle.BackColor = PanelColor;
+                grid.RowHeadersDefaultCellStyle.ForeColor = ForeColor;
+                return;
+            }
+
+            var toolStrip = control as ToolStrip;
+            if (toolStrip != null)
+            {
+                toolStrip.BackColor = PanelColor;
+                toolStrip.ForeColor = ForeColor;
+                toolStrip.RenderMode = ToolStripRenderMode.System;
+
+                foreach (ToolStripItem item in toolStrip.Items)
+                {
+                    item.BackColor = PanelColor;
+                    item.ForeColor = ForeColor;
+                }
+
+                return;
+            }
+
+            if (control is TextBoxBase || control is ComboBox || control is NumericUpDown || control is DateTimePicker)
+            {
+                control.BackColor = Color.FromArgb(18, 22, 28);
+                control.ForeColor = ForeColor;
+            }
+
+            var button = control as Button;
+            if (button != null)
+            {
+                button.BackColor = Color.FromArgb(48, 58, 72);
+                button.FlatStyle = FlatStyle.Flat;
+                button.FlatAppearance.BorderColor = Color.FromArgb(74, 88, 108);
+                button.ForeColor = ForeColor;
             }
         }
     }

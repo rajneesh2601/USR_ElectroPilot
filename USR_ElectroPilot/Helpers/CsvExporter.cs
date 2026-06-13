@@ -21,8 +21,12 @@ namespace USR_ElectroPilot.Helpers
                 Name = "btnExportCsv",
                 Text = "Export CSV",
                 Size = new Size(96, 28),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = UiHelper.AccentColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
             };
+            button.FlatAppearance.BorderColor = Color.FromArgb(0, 120, 110);
 
             PositionExportButton(grid, button);
             grid.Controls.Add(button);

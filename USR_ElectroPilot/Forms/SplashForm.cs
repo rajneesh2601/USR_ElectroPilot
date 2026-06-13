@@ -49,8 +49,14 @@ namespace USR_ElectroPilot.Forms
                 using (var loginForm = new LoginForm())
                 {
                     Hide();
-                    if (loginForm.ShowDialog(this) == DialogResult.OK)
+                    while (true)
                     {
+                        loginForm.ResetForNextLogin();
+                        if (loginForm.ShowDialog(this) != DialogResult.OK)
+                        {
+                            break;
+                        }
+
                         using (var mainForm = new MainForm())
                         {
                             mainForm.ShowDialog(this);

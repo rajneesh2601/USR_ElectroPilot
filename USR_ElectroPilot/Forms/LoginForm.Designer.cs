@@ -7,9 +7,11 @@ namespace USR_ElectroPilot.Forms
         private System.Windows.Forms.Label lblUsername;
         private System.Windows.Forms.Label lblPassword;
         private System.Windows.Forms.Label lblStatus;
+        private System.Windows.Forms.Label lblDefaultUsers;
         private System.Windows.Forms.TextBox txtUsername;
         private System.Windows.Forms.TextBox txtPassword;
         private System.Windows.Forms.Button btnLogin;
+        private System.Windows.Forms.Button btnExit;
 
         protected override void Dispose(bool disposing)
         {
@@ -27,9 +29,11 @@ namespace USR_ElectroPilot.Forms
             this.lblUsername = new System.Windows.Forms.Label();
             this.lblPassword = new System.Windows.Forms.Label();
             this.lblStatus = new System.Windows.Forms.Label();
+            this.lblDefaultUsers = new System.Windows.Forms.Label();
             this.txtUsername = new System.Windows.Forms.TextBox();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.btnLogin = new System.Windows.Forms.Button();
+            this.btnExit = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // lblTitle
@@ -68,6 +72,15 @@ namespace USR_ElectroPilot.Forms
             this.lblStatus.TabIndex = 6;
             this.lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // lblDefaultUsers
+            // 
+            this.lblDefaultUsers.Location = new System.Drawing.Point(48, 250);
+            this.lblDefaultUsers.Name = "lblDefaultUsers";
+            this.lblDefaultUsers.Size = new System.Drawing.Size(296, 28);
+            this.lblDefaultUsers.TabIndex = 7;
+            this.lblDefaultUsers.Text = "Default users: admin / sadmin / operator / viewer";
+            this.lblDefaultUsers.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // txtUsername
             // 
             this.txtUsername.Location = new System.Drawing.Point(48, 110);
@@ -86,7 +99,7 @@ namespace USR_ElectroPilot.Forms
             // 
             // btnLogin
             // 
-            this.btnLogin.Location = new System.Drawing.Point(224, 253);
+            this.btnLogin.Location = new System.Drawing.Point(224, 286);
             this.btnLogin.Name = "btnLogin";
             this.btnLogin.Size = new System.Drawing.Size(120, 32);
             this.btnLogin.TabIndex = 5;
@@ -94,12 +107,25 @@ namespace USR_ElectroPilot.Forms
             this.btnLogin.UseVisualStyleBackColor = true;
             this.btnLogin.Click += new System.EventHandler(this.BtnLogin_Click);
             // 
+            // btnExit
+            // 
+            this.btnExit.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            this.btnExit.Location = new System.Drawing.Point(48, 286);
+            this.btnExit.Name = "btnExit";
+            this.btnExit.Size = new System.Drawing.Size(120, 32);
+            this.btnExit.TabIndex = 8;
+            this.btnExit.Text = "Exit";
+            this.btnExit.UseVisualStyleBackColor = true;
+            // 
             // LoginForm
             // 
             this.AcceptButton = this.btnLogin;
+            this.CancelButton = this.btnExit;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(392, 316);
+            this.ClientSize = new System.Drawing.Size(392, 346);
+            this.Controls.Add(this.btnExit);
+            this.Controls.Add(this.lblDefaultUsers);
             this.Controls.Add(this.btnLogin);
             this.Controls.Add(this.txtPassword);
             this.Controls.Add(this.txtUsername);

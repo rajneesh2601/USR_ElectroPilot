@@ -17,6 +17,16 @@ namespace USR_ElectroPilot.Forms
         private void LoginForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            ResetForNextLogin();
+        }
+
+        public void ResetForNextLogin()
+        {
+            DialogResult = DialogResult.None;
+            txtUsername.Clear();
+            txtPassword.Clear();
+            lblStatus.Text = "Sign in as Admin, Supervisor, Operator, or Viewer.";
+            btnLogin.Enabled = true;
             txtUsername.Focus();
         }
 
@@ -48,7 +58,7 @@ namespace USR_ElectroPilot.Forms
                 if (_authService.Login(username, password, out message))
                 {
                     DialogResult = DialogResult.OK;
-                    Close();
+                    Hide();
                     return;
                 }
 

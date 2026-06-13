@@ -172,7 +172,7 @@ namespace USR_ElectroPilot.Data
                 new { Username = "admin", Password = "admin123", Role = "Admin", DisplayName = "Administrator" },
                 new { Username = "sadmin", Password = "sadmin123", Role = "Supervisor", DisplayName = "Supervisor" },
                 new { Username = "operator", Password = "op123", Role = "Operator", DisplayName = "Operator" },
-                new { Username = "viewer", Password = "view123", Role = "Operator", DisplayName = "Viewer" }
+                new { Username = "viewer", Password = "view123", Role = "Viewer", DisplayName = "Viewer" }
             };
 
             foreach (var user in users)
@@ -189,6 +189,14 @@ namespace USR_ElectroPilot.Data
                     command.Parameters.AddWithValue("@DisplayName", user.DisplayName);
                     command.ExecuteNonQuery();
                 }
+            }
+
+            using (var command = new SQLiteCommand(
+                "UPDATE Users SET Role = 'Viewer' WHERE Username = 'viewer' AND DisplayName = 'Viewer';",
+                connection,
+                transaction))
+            {
+                command.ExecuteNonQuery();
             }
         }
 

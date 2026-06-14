@@ -72,6 +72,9 @@
     <Compile Include="Controls\WagonControl.Designer.cs">
       <DependentUpon>WagonControl.cs</DependentUpon>
     </Compile>
+    <Compile Include="Controls\ScadaOverviewControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Data\AlarmRepository.cs" />
     <Compile Include="Data\AuditRepository.cs" />
     <Compile Include="Data\LoadRepository.cs" />

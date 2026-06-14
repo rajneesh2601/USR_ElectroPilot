@@ -21,7 +21,7 @@ namespace USR_ElectroPilot.Forms
         private System.Windows.Forms.TabPage tabWagons;
         private System.Windows.Forms.TabPage tabRectifiers;
         private System.Windows.Forms.TabPage tabAlarms;
-        private System.Windows.Forms.FlowLayoutPanel pnlTanks;
+        private System.Windows.Forms.Panel pnlTanks;
         private System.Windows.Forms.FlowLayoutPanel pnlWagons;
         private System.Windows.Forms.FlowLayoutPanel pnlRectifiers;
         private System.Windows.Forms.DataGridView alarmGrid;
@@ -56,7 +56,7 @@ namespace USR_ElectroPilot.Forms
             this.pnlStatus = new System.Windows.Forms.FlowLayoutPanel();
             this.tabs = new System.Windows.Forms.TabControl();
             this.tabTanks = new System.Windows.Forms.TabPage();
-            this.pnlTanks = new System.Windows.Forms.FlowLayoutPanel();
+            this.pnlTanks = new System.Windows.Forms.Panel();
             this.tabWagons = new System.Windows.Forms.TabPage();
             this.pnlWagons = new System.Windows.Forms.FlowLayoutPanel();
             this.tabRectifiers = new System.Windows.Forms.TabPage();
@@ -231,11 +231,9 @@ namespace USR_ElectroPilot.Forms
             // 
             // pnlTanks
             // 
-            this.pnlTanks.AutoScroll = true;
             this.pnlTanks.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlTanks.Location = new System.Drawing.Point(3, 3);
             this.pnlTanks.Name = "pnlTanks";
-            this.pnlTanks.Padding = new System.Windows.Forms.Padding(8);
             this.pnlTanks.Size = new System.Drawing.Size(1090, 506);
             this.pnlTanks.TabIndex = 0;
 

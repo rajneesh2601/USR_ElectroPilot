@@ -12,8 +12,8 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 
 - Created database helper, SQLite connection factory, repositories, models, helpers, and services.
 - Added startup flow with `SplashForm` and login flow with `LoginForm`.
-- Added dashboard UI in `MainForm` with toolbar, status cards, tanks, wagons, rectifiers, and alarm grid.
-- Added custom controls for tanks, wagons, rectifiers, and status cards.
+- Added dashboard UI in `MainForm` with toolbar, status cards, SCADA-style tank mimic, wagons, rectifiers, and alarm grid.
+- Added custom controls for tanks, wagons, rectifiers, status cards, and a full-line SCADA overview.
 - Added tank add/edit/remove workflow.
 - Added admin panel with user management, user activity, audit log, and system settings screens.
 - Added operational forms:
@@ -30,6 +30,7 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Updated login flow so logout returns to the login screen and another user can sign in immediately.
 - Added visible default-user guidance on `LoginForm` and corrected the default `viewer` role.
 - Added a tank historian repository/service and changed tank trends to use recorded time-series data.
+- Reworked the tank tab into a reference-style electroplating SCADA mimic with two process rails, compact tank cells, live values, wagon/hoist indicators, alarm legend, and right-click tank actions.
 
 ## Latest verified commits
 
@@ -45,6 +46,7 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - `d9cc17f feat: add SCADA operation controls from ch prompt`
 - `fe6f04a fix: return to login after user logout`
 - This follow-up change adds historical tank trend recording from `newprpmpt.txt` guidance.
+- This follow-up change adds a SCADA mimic tank overview based on the provided electroplating HMI reference.
 
 ## Release verification
 
@@ -54,4 +56,5 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - `ch.txt` follow-up smoke test covers default tank seeding, tank start/fault/reset flow, active alarm reset, and `TankControl` operation buttons.
 - Multi-login smoke test covers admin login, logout, viewer login, viewer role verification, and login form reset.
 - Historian smoke test covers tank snapshot recording, history retrieval, and `TrendForm` load using time-series data.
+- SCADA mimic verification covers debug/release build compilation and existing tank action wiring through the overview context menu.
 - `v1.0.0` was published before the `ch.txt` follow-up additions.

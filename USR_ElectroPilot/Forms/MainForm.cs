@@ -17,6 +17,7 @@ namespace USR_ElectroPilot.Forms
         private readonly SimulatorService _simulatorService = new SimulatorService();
         private readonly AlarmService _alarmService = new AlarmService();
         private readonly TankHistoryService _tankHistoryService = new TankHistoryService();
+        private ScadaOverviewControl _scadaOverview;
         private TankModel _selectedTank;
 
         public MainForm()
@@ -142,18 +143,11 @@ namespace USR_ElectroPilot.Forms
 
         private void SimulatorTimer_Tick(object sender, EventArgs e)
         {
-            UpdateHeaderIndicators(null);
-
-            var tanks = new List<TankModel>();
+            var tanks = _tankService.GetTanks();
             var previousStatuses = new Dictionary<int, string>();
-            foreach (Control control in pnlTanks.Controls)
+            foreach (var tank in tanks)
             {
-                var tankControl = control as TankControl;
-                if (tankControl != null && tankControl.Tank != null)
-                {
-                    previousStatuses[tankControl.Tank.Id] = tankControl.Tank.Status;
-                    tanks.Add(tankControl.Tank);
-                }
+                previousStatuses[tank.Id] = tank.Status;
             }
 
             var rectifiers = new List<RectifierModel>();
@@ -176,7 +170,15 @@ namespace USR_ElectroPilot.Forms
                 RaiseStateAlarmIfNeeded(tank, previousStatuses.ContainsKey(tank.Id) ? previousStatuses[tank.Id] : string.Empty);
             }
 
-            pnlTanks.Invalidate(true);
+            RefreshLiveDashboard();
+        }
+
+        private void RefreshLiveDashboard()
+        {
+            var status = _dashboardService.GetPlantStatus();
+            UpdateHeaderIndicators(status);
+            LoadStatusCards(status);
+            LoadTanks();
             pnlRectifiers.Invalidate(true);
             LoadAlarms();
         }
@@ -203,19 +205,28 @@ namespace USR_ElectroPilot.Forms
 
         private void LoadTanks()
         {
-            pnlTanks.Controls.Clear();
-            foreach (var tank in _tankService.GetTanks())
+            if (_scadaOverview == null)
             {
-                var tankControl = new TankControl { Margin = new Padding(8) };
-                tankControl.BindTank(tank);
-                tankControl.Click += delegate { _selectedTank = tank; };
-                tankControl.StartClicked += TankControl_StartClicked;
-                tankControl.StopClicked += TankControl_StopClicked;
-                tankControl.FaultClicked += TankControl_FaultClicked;
-                tankControl.ResetClicked += TankControl_ResetClicked;
-                tankControl.RemoveClicked += TankControl_RemoveClicked;
-                pnlTanks.Controls.Add(tankControl);
+                _scadaOverview = new ScadaOverviewControl { Dock = DockStyle.Fill };
+                _scadaOverview.TankSelected += ScadaOverview_TankSelected;
+                _scadaOverview.StartClicked += TankControl_StartClicked;
+                _scadaOverview.StopClicked += TankControl_StopClicked;
+                _scadaOverview.FaultClicked += TankControl_FaultClicked;
+                _scadaOverview.ResetClicked += TankControl_ResetClicked;
+                _scadaOverview.RemoveClicked += TankControl_RemoveClicked;
+                pnlTanks.Controls.Add(_scadaOverview);
             }
+
+            _scadaOverview.BindData(_tankService.GetTanks(), _wagonService.GetWagons());
+            if (_selectedTank != null)
+            {
+                _scadaOverview.SelectTank(_selectedTank.Id);
+            }
+        }
+
+        private void ScadaOverview_TankSelected(object sender, TankControlEventArgs e)
+        {
+            _selectedTank = FindTank(e.TankId);
         }
 
         private void LoadWagons()

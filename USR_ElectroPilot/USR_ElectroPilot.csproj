@@ -75,10 +75,15 @@
     <Compile Include="Controls\ScadaOverviewControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="Controls\HoistControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Data\AlarmRepository.cs" />
     <Compile Include="Data\AuditRepository.cs" />
     <Compile Include="Data\LoadRepository.cs" />
     <Compile Include="Data\HoistStatusRepository.cs" />
+    <Compile Include="Data\HoistRepository.cs" />
+    <Compile Include="Data\JobRepository.cs" />
     <Compile Include="Data\ProcessStepRepository.cs" />
     <Compile Include="Data\RecipeRepository.cs" />
     <Compile Include="Data\RectifierRepository.cs" />
@@ -100,6 +105,8 @@
     <Compile Include="Models\AuditLogModel.cs" />
     <Compile Include="Models\LoadModel.cs" />
     <Compile Include="Models\HoistStatusModel.cs" />
+    <Compile Include="Models\HoistModel.cs" />
+    <Compile Include="Models\JobModel.cs" />
     <Compile Include="Models\ProcessStepModel.cs" />
     <Compile Include="Models\RecipeModel.cs" />
     <Compile Include="Models\RectifierModel.cs" />
@@ -201,8 +208,11 @@
     <Compile Include="Services\AuthService.cs" />
     <Compile Include="Services\DashboardService.cs" />
     <Compile Include="Services\HoistStatusService.cs" />
+    <Compile Include="Services\HoistService.cs" />
+    <Compile Include="Services\JobService.cs" />
     <Compile Include="Services\LoadService.cs" />
     <Compile Include="Services\ProcessStepService.cs" />
+    <Compile Include="Services\ProcessRecipeService.cs" />
     <Compile Include="Services\RecipeService.cs" />
     <Compile Include="Services\RectifierService.cs" />
     <Compile Include="Services\ReportService.cs" />

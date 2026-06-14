@@ -5,7 +5,9 @@ namespace USR_ElectroPilot.Models
         public int StepId { get; set; }
         public int StepNo { get; set; }
         public int TankId { get; set; }
+        public int TankNo { get; set; }
         public string StepName { get; set; }
+        public string ProcessName { get; set; }
         public int DurationSeconds { get; set; }
         public bool IsActive { get; set; }
     }

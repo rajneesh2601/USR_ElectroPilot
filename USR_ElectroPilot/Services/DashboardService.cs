@@ -12,7 +12,8 @@ namespace USR_ElectroPilot.Services
         private readonly LoadRepository _loadRepository = new LoadRepository();
         private readonly RectifierRepository _rectifierRepository = new RectifierRepository();
         private readonly ProcessStepRepository _processStepRepository = new ProcessStepRepository();
-        private readonly HoistStatusRepository _hoistStatusRepository = new HoistStatusRepository();
+        private readonly HoistRepository _hoistRepository = new HoistRepository();
+        private readonly JobRepository _jobRepository = new JobRepository();
 
         public PlantStatusModel GetPlantStatus()
         {
@@ -23,9 +24,11 @@ namespace USR_ElectroPilot.Services
             var loads = _loadRepository.GetAll();
             var rectifiers = _rectifierRepository.GetAll();
             var steps = _processStepRepository.GetActive();
-            var hoist = _hoistStatusRepository.GetCurrent();
-            var hoistTank = tanks.FirstOrDefault(t => hoist.CurrentTankId.HasValue && t.Id == hoist.CurrentTankId.Value);
-            var currentStep = steps.FirstOrDefault(s => hoist.CurrentTankId.HasValue && s.TankId == hoist.CurrentTankId.Value);
+            var hoists = _hoistRepository.GetAll();
+            var jobs = _jobRepository.GetActive();
+            var activeJob = jobs.FirstOrDefault();
+            var activeHoist = hoists.FirstOrDefault(h => activeJob != null && h.CurrentJobId == activeJob.JobId) ?? hoists.FirstOrDefault();
+            var currentStep = activeJob == null ? null : steps.FirstOrDefault(s => s.StepNo == activeJob.CurrentStep);
 
             return new PlantStatusModel
             {
@@ -36,9 +39,9 @@ namespace USR_ElectroPilot.Services
                 ActiveAlarmCount = alarms.Count,
                 QueuedLoadCount = loads.Count(l => string.Equals(l.Status, "Queued", StringComparison.OrdinalIgnoreCase)),
                 RunningRectifierCount = rectifiers.Count(r => r.IsRunning),
-                CurrentProcessStep = currentStep == null ? "Idle" : currentStep.StepName,
-                HoistPosition = hoistTank == null ? "No Tank" : hoistTank.Name,
-                HoistState = string.IsNullOrEmpty(hoist.Status) ? "Idle" : hoist.Status,
+                CurrentProcessStep = currentStep == null ? "Idle" : currentStep.ProcessName,
+                HoistPosition = activeHoist == null ? "No Hoist" : activeHoist.HoistName + " T" + activeHoist.CurrentTankNo,
+                HoistState = activeHoist == null || string.IsNullOrEmpty(activeHoist.Status) ? "Idle" : activeHoist.Status,
                 UpdatedAt = DateTime.Now
             };
         }

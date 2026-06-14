@@ -26,10 +26,13 @@ namespace USR_ElectroPilot.Data
                         ExecuteNonQuery(connection, transaction, statement);
                     }
 
+                    MigrateProcessSteps(connection, transaction);
+
                     SeedDefaultUsers(connection, transaction);
                     SeedSystemSettings(connection, transaction);
                     SeedDefaultTanks(connection, transaction);
                     SeedDefaultProcessSteps(connection, transaction);
+                    SeedDefaultHoists(connection, transaction);
                     SeedDefaultHoistStatus(connection, transaction);
 
                     transaction.Commit();
@@ -107,10 +110,34 @@ namespace USR_ElectroPilot.Data
                     StepId INTEGER PRIMARY KEY AUTOINCREMENT,
                     StepNo INTEGER NOT NULL,
                     TankId INTEGER NOT NULL,
+                    TankNo INTEGER NULL,
                     StepName TEXT NOT NULL,
+                    ProcessName TEXT NULL,
                     DurationSeconds INTEGER NOT NULL,
                     IsActive INTEGER NOT NULL DEFAULT 1,
                     FOREIGN KEY (TankId) REFERENCES Tanks(Id)
+                );",
+                @"CREATE TABLE IF NOT EXISTS Hoists (
+                    HoistId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    HoistName TEXT,
+                    CurrentTankNo INTEGER,
+                    TargetTankNo INTEGER,
+                    Status TEXT,
+                    CurrentJobId INTEGER NULL,
+                    LineNo INTEGER,
+                    IsAuto INTEGER,
+                    PositionIndex REAL NOT NULL DEFAULT 0,
+                    StateTicks INTEGER NOT NULL DEFAULT 0
+                );",
+                @"CREATE TABLE IF NOT EXISTS Jobs (
+                    JobId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    JobNumber TEXT,
+                    CurrentStep INTEGER,
+                    CurrentTank INTEGER,
+                    Status TEXT,
+                    RemainingSeconds INTEGER NOT NULL DEFAULT 0,
+                    StartedAt TEXT,
+                    CompletedAt TEXT NULL
                 );",
                 @"CREATE TABLE IF NOT EXISTS HoistStatus (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,15 +357,51 @@ namespace USR_ElectroPilot.Data
                 }
 
                 using (var command = new SQLiteCommand(
-                    @"INSERT INTO ProcessSteps (StepNo, TankId, StepName, DurationSeconds, IsActive)
-                      VALUES (@StepNo, @TankId, @StepName, @DurationSeconds, 1);",
+                    @"INSERT INTO ProcessSteps (StepNo, TankId, TankNo, StepName, ProcessName, DurationSeconds, IsActive)
+                      VALUES (@StepNo, @TankId, @TankNo, @StepName, @ProcessName, @DurationSeconds, 1);",
                     connection,
                     transaction))
                 {
                     command.Parameters.AddWithValue("@StepNo", step.StepNo);
                     command.Parameters.AddWithValue("@TankId", tankId);
+                    command.Parameters.AddWithValue("@TankNo", step.TankNumber);
                     command.Parameters.AddWithValue("@StepName", step.StepName);
+                    command.Parameters.AddWithValue("@ProcessName", step.StepName);
                     command.Parameters.AddWithValue("@DurationSeconds", step.DurationSeconds);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private static void SeedDefaultHoists(SQLiteConnection connection, SQLiteTransaction transaction)
+        {
+            using (var countCommand = new SQLiteCommand("SELECT COUNT(1) FROM Hoists;", connection, transaction))
+            {
+                if (Convert.ToInt32(countCommand.ExecuteScalar()) > 0)
+                {
+                    return;
+                }
+            }
+
+            var hoists = new[]
+            {
+                new { Name = "H1", TankNo = 1, LineNo = 1 },
+                new { Name = "H2", TankNo = 6, LineNo = 2 }
+            };
+
+            foreach (var hoist in hoists)
+            {
+                using (var command = new SQLiteCommand(
+                    @"INSERT INTO Hoists (HoistName, CurrentTankNo, TargetTankNo, Status, CurrentJobId, LineNo, IsAuto, PositionIndex, StateTicks)
+                      VALUES (@HoistName, @CurrentTankNo, @TargetTankNo, 'Idle', NULL, @LineNo, 1, @PositionIndex, 0);",
+                    connection,
+                    transaction))
+                {
+                    command.Parameters.AddWithValue("@HoistName", hoist.Name);
+                    command.Parameters.AddWithValue("@CurrentTankNo", hoist.TankNo);
+                    command.Parameters.AddWithValue("@TargetTankNo", hoist.TankNo);
+                    command.Parameters.AddWithValue("@LineNo", hoist.LineNo);
+                    command.Parameters.AddWithValue("@PositionIndex", hoist.TankNo - 1);
                     command.ExecuteNonQuery();
                 }
             }
@@ -354,6 +417,37 @@ namespace USR_ElectroPilot.Data
             {
                 command.ExecuteNonQuery();
             }
+        }
+
+        private static void MigrateProcessSteps(SQLiteConnection connection, SQLiteTransaction transaction)
+        {
+            EnsureColumn(connection, transaction, "ProcessSteps", "TankNo", "INTEGER NULL");
+            EnsureColumn(connection, transaction, "ProcessSteps", "ProcessName", "TEXT NULL");
+
+            ExecuteNonQuery(
+                connection,
+                transaction,
+                @"UPDATE ProcessSteps
+                  SET TankNo = COALESCE(TankNo, (SELECT TankNumber FROM Tanks WHERE Tanks.Id = ProcessSteps.TankId)),
+                      ProcessName = COALESCE(ProcessName, StepName)
+                  WHERE TankNo IS NULL OR ProcessName IS NULL;");
+        }
+
+        private static void EnsureColumn(SQLiteConnection connection, SQLiteTransaction transaction, string tableName, string columnName, string definition)
+        {
+            using (var command = new SQLiteCommand("PRAGMA table_info(" + tableName + ");", connection, transaction))
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    if (string.Equals(Convert.ToString(reader["name"]), columnName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            ExecuteNonQuery(connection, transaction, "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition + ";");
         }
 
         private static void ExecuteNonQuery(SQLiteConnection connection, SQLiteTransaction transaction, string statement)

@@ -401,7 +401,7 @@ namespace USR_ElectroPilot.Forms
             //
             // simulatorTimer
             //
-            this.simulatorTimer.Interval = 1000;
+            this.simulatorTimer.Interval = 500;
             this.simulatorTimer.Tick += new System.EventHandler(this.SimulatorTimer_Tick);
 
             //

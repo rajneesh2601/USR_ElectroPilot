@@ -12,7 +12,13 @@ namespace USR_ElectroPilot.Data
             var steps = new List<ProcessStepModel>();
 
             using (var connection = SqliteConnectionFactory.CreateConnection())
-            using (var command = new SQLiteCommand("SELECT * FROM ProcessSteps WHERE IsActive = 1 ORDER BY StepNo;", connection))
+            using (var command = new SQLiteCommand(
+                @"SELECT ps.*, t.TankNumber AS ResolvedTankNo
+                  FROM ProcessSteps ps
+                  LEFT JOIN Tanks t ON t.Id = ps.TankId
+                  WHERE ps.IsActive = 1
+                  ORDER BY ps.StepNo;",
+                connection))
             {
                 connection.Open();
                 using (var reader = command.ExecuteReader())
@@ -34,10 +40,24 @@ namespace USR_ElectroPilot.Data
                 StepId = Convert.ToInt32(reader["StepId"]),
                 StepNo = Convert.ToInt32(reader["StepNo"]),
                 TankId = Convert.ToInt32(reader["TankId"]),
+                TankNo = ReadInt(reader, "TankNo", "ResolvedTankNo"),
                 StepName = Convert.ToString(reader["StepName"]),
+                ProcessName = ReadString(reader, "ProcessName", "StepName"),
                 DurationSeconds = Convert.ToInt32(reader["DurationSeconds"]),
                 IsActive = Convert.ToInt32(reader["IsActive"]) == 1
             };
+        }
+
+        private static int ReadInt(SQLiteDataReader reader, string preferredName, string fallbackName)
+        {
+            var value = reader[preferredName] == DBNull.Value ? reader[fallbackName] : reader[preferredName];
+            return value == DBNull.Value ? 0 : Convert.ToInt32(value);
+        }
+
+        private static string ReadString(SQLiteDataReader reader, string preferredName, string fallbackName)
+        {
+            var value = reader[preferredName] == DBNull.Value ? reader[fallbackName] : reader[preferredName];
+            return value == DBNull.Value ? string.Empty : Convert.ToString(value);
         }
     }
 }

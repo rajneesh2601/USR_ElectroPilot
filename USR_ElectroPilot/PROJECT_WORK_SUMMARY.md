@@ -39,6 +39,9 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Improved SCADA overview spacing and status-card text fitting so longer process names do not clip.
 - Fixed hoist movement arrival logic so transitions such as T1 to T2 clamp to the target and continue into processing.
 - Upgraded the SCADA overview with an internal plant header, framed process area, darker operator panel, row labels, and clearer tank status/value styling.
+- Added first-class `Hoists` and `Jobs` tables plus `HoistService`, `ProcessRecipeService`, and `JobService` for production sequencing.
+- Added `HoistControl` and upgraded the overview to show multiple hoists, hoist queue, process recipe, active jobs, and tank occupancy.
+- Process sequencing now moves jobs through Moving, Lowering, Processing, Lifting, Complete states against the configured recipe.
 
 ## Latest verified commits
 
@@ -69,4 +72,5 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Process SCADA smoke test covers `ProcessSteps`, `HoistStatus`, and off-screen render of the overview dashboard.
 - SCADA row smoke test covers persisted tank-row setting and off-screen rendering with multiple tank lines.
 - Hoist transition smoke test covers T1 to T2 movement reaching processing instead of staying in moving state.
+- Sequencing smoke test covers starting a production job, advancing it through recipe steps, DB-backed hoist processing, and off-screen SCADA render with jobs/hoists.
 - `v1.0.0` was published before the `ch.txt` follow-up additions.

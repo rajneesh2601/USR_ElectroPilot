@@ -17,12 +17,16 @@ namespace USR_ElectroPilot.Forms
         private readonly SimulatorService _simulatorService = new SimulatorService();
         private readonly AlarmService _alarmService = new AlarmService();
         private readonly TankHistoryService _tankHistoryService = new TankHistoryService();
-        private readonly ProcessStepService _processStepService = new ProcessStepService();
+        private readonly ProcessRecipeService _processRecipeService = new ProcessRecipeService();
         private readonly HoistStatusService _hoistStatusService = new HoistStatusService();
+        private readonly HoistService _hoistService = new HoistService();
+        private readonly JobService _jobService = new JobService();
         private readonly ScadaLayoutService _scadaLayoutService = new ScadaLayoutService();
         private ScadaOverviewControl _scadaOverview;
         private TankModel _selectedTank;
         private List<ProcessStepModel> _processSteps = new List<ProcessStepModel>();
+        private List<HoistModel> _hoists = new List<HoistModel>();
+        private List<JobModel> _jobs = new List<JobModel>();
         private HoistStatusModel _hoistStatus = new HoistStatusModel { Status = "Idle" };
         private bool _autoMode = true;
         private bool _cycleRunning;
@@ -32,6 +36,7 @@ namespace USR_ElectroPilot.Forms
         private double _hoistVisualIndex;
         private double _hoistTargetIndex;
         private int _scadaTankRows = 1;
+        private bool _processSecondTick;
 
         public MainForm()
         {
@@ -151,17 +156,16 @@ namespace USR_ElectroPilot.Forms
 
             _autoMode = true;
             _cycleRunning = true;
-            _currentStepIndex = 0;
-            _remainingStepSeconds = 0;
+            _jobService.StartJob(_processSteps);
+            LoadProcessState();
             UpdateModeButtons();
-            AdvanceToCurrentStepTarget();
             RefreshDashboard();
         }
 
         private void BtnStopCycle_Click(object sender, EventArgs e)
         {
             _cycleRunning = false;
-            _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
+            _hoistService.StopAll();
             LoadProcessState();
             UpdateModeButtons();
             RefreshDashboard();
@@ -171,7 +175,8 @@ namespace USR_ElectroPilot.Forms
         {
             _emergencyStop = true;
             _cycleRunning = false;
-            _hoistStatusService.Save(GetCurrentStepTankId(), "Emergency Stop");
+            _hoistService.EmergencyStop();
+            _hoistStatusService.Save(GetCurrentStepTankId(), "EmergencyStop");
             _alarmService.RaiseAlarm("Hoist", "Critical", "Emergency stop activated.");
             LoadProcessState();
             UpdateModeButtons();
@@ -185,6 +190,7 @@ namespace USR_ElectroPilot.Forms
             _currentStepIndex = 0;
             _remainingStepSeconds = 0;
             _alarmService.ResetActiveAlarms();
+            _hoistService.StopAll();
             _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
             LoadProcessState();
             UpdateModeButtons();
@@ -263,6 +269,7 @@ namespace USR_ElectroPilot.Forms
 
             foreach (var tank in tanks)
             {
+                ApplyTankOccupancyStatus(tank);
                 _tankService.UpdateTank(tank);
                 _tankHistoryService.RecordSnapshot(tank);
                 RaiseStateAlarmIfNeeded(tank, previousStatuses.ContainsKey(tank.Id) ? previousStatuses[tank.Id] : string.Empty);
@@ -322,6 +329,8 @@ namespace USR_ElectroPilot.Forms
                 _tankService.GetTanks(),
                 _wagonService.GetWagons(),
                 _processSteps,
+                _hoists,
+                _jobs,
                 _hoistStatus,
                 _hoistVisualIndex,
                 GetCurrentStepName(),
@@ -343,6 +352,16 @@ namespace USR_ElectroPilot.Forms
         private void LoadWagons()
         {
             pnlWagons.Controls.Clear();
+            foreach (var hoist in _hoistService.GetHoists())
+            {
+                pnlWagons.Controls.Add(new HoistControl
+                {
+                    Hoist = hoist,
+                    Job = FindJob(hoist.CurrentJobId),
+                    Margin = new Padding(8)
+                });
+            }
+
             foreach (var wagon in _wagonService.GetWagons())
             {
                 pnlWagons.Controls.Add(new WagonControl { Wagon = wagon, Margin = new Padding(8) });
@@ -463,77 +482,49 @@ namespace USR_ElectroPilot.Forms
 
         private void LoadProcessState()
         {
-            _processSteps = _processStepService.GetActiveSteps();
+            _processSteps = _processRecipeService.GetRecipeSteps();
+            _hoists = _hoistService.GetHoists();
+            _jobs = _jobService.GetActiveJobs();
             _hoistStatus = _hoistStatusService.GetCurrent();
-            _hoistVisualIndex = GetTankIndex(_hoistStatus.CurrentTankId);
-            _hoistTargetIndex = _hoistVisualIndex;
+            var primaryHoist = _hoists.Count == 0 ? null : _hoists[0];
+            if (primaryHoist != null)
+            {
+                _hoistVisualIndex = primaryHoist.PositionIndex;
+                _hoistTargetIndex = Math.Max(0, primaryHoist.TargetTankNo - 1);
+                _hoistStatus.CurrentTankId = GetTankIdByNumber(primaryHoist.CurrentTankNo);
+                _hoistStatus.Status = primaryHoist.Status;
+            }
+            else
+            {
+                _hoistVisualIndex = GetTankIndex(_hoistStatus.CurrentTankId);
+                _hoistTargetIndex = _hoistVisualIndex;
+            }
+
+            var activeJob = _jobs.Count == 0 ? null : _jobs[0];
+            _currentStepIndex = activeJob == null ? 0 : Math.Max(0, activeJob.CurrentStep - 1);
+            _remainingStepSeconds = activeJob == null ? 0 : activeJob.RemainingSeconds;
         }
 
         private void SimulateProcessCycle(List<TankModel> tanks)
         {
-            if (_emergencyStop)
+            _processSecondTick = !_processSecondTick;
+            _hoistService.Tick(_processSteps, _jobs, _autoMode && _cycleRunning, _emergencyStop, _processSecondTick);
+            LoadProcessState();
+            ApplyRunningTankFromJobs(tanks);
+
+            if (_cycleRunning && _jobs.Count == 0)
             {
-                _hoistStatus.Status = "Emergency Stop";
-                return;
-            }
-
-            if (!_cycleRunning || !_autoMode || _processSteps.Count == 0)
-            {
-                return;
-            }
-
-            var currentStep = _processSteps[_currentStepIndex];
-            _hoistTargetIndex = GetTankIndex(currentStep.TankId);
-
-            if (Math.Abs(_hoistVisualIndex - _hoistTargetIndex) > 0.05)
-            {
-                _hoistStatus.Status = "Moving";
-                MoveHoistTowardTarget();
-                if (Math.Abs(_hoistVisualIndex - _hoistTargetIndex) > 20)
-                {
-                    _alarmService.RaiseAlarm("Hoist", "Critical", "Hoist movement error.");
-                }
-
-                return;
-            }
-
-            _hoistVisualIndex = _hoistTargetIndex;
-
-            if (_remainingStepSeconds <= 0)
-            {
-                _remainingStepSeconds = currentStep.DurationSeconds;
-                _hoistStatus.CurrentTankId = currentStep.TankId;
-                _hoistStatus.Status = GetStepHoistState(currentStep);
-                _hoistStatusService.Save(currentStep.TankId, _hoistStatus.Status);
-                SetOnlyCurrentTankRunning(tanks, currentStep.TankId);
-                return;
-            }
-
-            _remainingStepSeconds--;
-
-            if (_remainingStepSeconds == 0)
-            {
-                _currentStepIndex++;
-                if (_currentStepIndex >= _processSteps.Count)
-                {
-                    _currentStepIndex = 0;
-                    _cycleRunning = false;
-                    _hoistStatus.Status = "Idle";
-                    _hoistStatusService.Save(currentStep.TankId, "Idle");
-                    UpdateModeButtons();
-                }
-                else
-                {
-                    AdvanceToCurrentStepTarget();
-                }
+                _cycleRunning = false;
+                UpdateModeButtons();
             }
         }
 
-        private void SetOnlyCurrentTankRunning(List<TankModel> tanks, int tankId)
+        private void ApplyRunningTankFromJobs(List<TankModel> tanks)
         {
             foreach (var tank in tanks)
             {
-                if (tank.Id == tankId)
+                var occupied = IsTankOccupied(tank.TankNumber);
+                if (occupied)
                 {
                     tank.Status = Constants.StatusRunning;
                 }
@@ -544,20 +535,6 @@ namespace USR_ElectroPilot.Forms
             }
         }
 
-        private void AdvanceToCurrentStepTarget()
-        {
-            if (_processSteps.Count == 0)
-            {
-                return;
-            }
-
-            var step = _processSteps[_currentStepIndex];
-            _hoistTargetIndex = GetTankIndex(step.TankId);
-            _hoistStatus.Status = "Moving";
-            _hoistStatusService.Save(step.TankId, "Moving");
-            _hoistStatus = _hoistStatusService.GetCurrent();
-        }
-
         private int? GetCurrentStepTankId()
         {
             if (_processSteps.Count == 0)
@@ -565,7 +542,7 @@ namespace USR_ElectroPilot.Forms
                 return null;
             }
 
-            return _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].TankId;
+            return GetTankIdByNumber(_processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].TankNo);
         }
 
         private string GetCurrentStepName()
@@ -575,22 +552,7 @@ namespace USR_ElectroPilot.Forms
                 return "No Process";
             }
 
-            return _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].StepName;
-        }
-
-        private string GetStepHoistState(ProcessStepModel step)
-        {
-            if (step == null || step.StepNo == 1)
-            {
-                return "Loading";
-            }
-
-            if (step.StepNo >= _processSteps.Count)
-            {
-                return "Unloading";
-            }
-
-            return "Processing";
+            return _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].ProcessName;
         }
 
         private double GetTankIndex(int? tankId)
@@ -624,6 +586,58 @@ namespace USR_ElectroPilot.Forms
             }
 
             _hoistVisualIndex += distance > 0 ? step : -step;
+        }
+
+        private int? GetTankIdByNumber(int tankNo)
+        {
+            foreach (var tank in _tankService.GetTanks())
+            {
+                if (tank.TankNumber == tankNo)
+                {
+                    return tank.Id;
+                }
+            }
+
+            return null;
+        }
+
+        private JobModel FindJob(int? jobId)
+        {
+            if (!jobId.HasValue)
+            {
+                return null;
+            }
+
+            foreach (var job in _jobs)
+            {
+                if (job.JobId == jobId.Value)
+                {
+                    return job;
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsTankOccupied(int tankNo)
+        {
+            foreach (var job in _jobs)
+            {
+                if (job.CurrentTank == tankNo && !string.Equals(job.Status, "Moving", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void ApplyTankOccupancyStatus(TankModel tank)
+        {
+            if (IsTankOccupied(tank.TankNumber))
+            {
+                tank.Status = Constants.StatusRunning;
+            }
         }
 
         private void RaiseProcessAlarmIfNeeded(TankModel tank)

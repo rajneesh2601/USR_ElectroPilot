@@ -488,7 +488,7 @@ namespace USR_ElectroPilot.Forms
             if (Math.Abs(_hoistVisualIndex - _hoistTargetIndex) > 0.05)
             {
                 _hoistStatus.Status = "Moving";
-                _hoistVisualIndex += _hoistVisualIndex < _hoistTargetIndex ? 0.18 : -0.18;
+                MoveHoistTowardTarget();
                 if (Math.Abs(_hoistVisualIndex - _hoistTargetIndex) > 20)
                 {
                     _alarmService.RaiseAlarm("Hoist", "Critical", "Hoist movement error.");
@@ -610,6 +610,20 @@ namespace USR_ElectroPilot.Forms
             }
 
             return 0;
+        }
+
+        private void MoveHoistTowardTarget()
+        {
+            var distance = _hoistTargetIndex - _hoistVisualIndex;
+            var step = 0.18;
+
+            if (Math.Abs(distance) <= step)
+            {
+                _hoistVisualIndex = _hoistTargetIndex;
+                return;
+            }
+
+            _hoistVisualIndex += distance > 0 ? step : -step;
         }
 
         private void RaiseProcessAlarmIfNeeded(TankModel tank)

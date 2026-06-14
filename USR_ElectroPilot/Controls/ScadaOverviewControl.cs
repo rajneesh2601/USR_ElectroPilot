@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using USR_ElectroPilot.Helpers;
 using USR_ElectroPilot.Models;
@@ -124,7 +125,7 @@ namespace USR_ElectroPilot.Controls
             base.OnPaint(e);
 
             var g = e.Graphics;
-            g.Clear(BackColor);
+            g.Clear(Color.FromArgb(211, 224, 230));
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             _tankHitBoxes.Clear();
 
@@ -135,11 +136,13 @@ namespace USR_ElectroPilot.Controls
             using (var railPen = new Pen(Color.FromArgb(38, 95, 143), 5F))
             using (var thinRailPen = new Pen(Color.FromArgb(93, 157, 191), 2F))
             {
+                DrawPlantHeader(g, titleFont, smallFont);
+                DrawPlantFrame(g);
                 DrawSidePanel(g, titleFont, smallFont);
 
                 var plantLeft = 172;
-                var plantTop = 56;
-                var plantRight = Width - 34;
+                var plantTop = 82;
+                var plantRight = Width - 42;
                 var usableWidth = Math.Max(500, plantRight - plantLeft);
                 var rowCount = GetVisibleRowCount(usableWidth);
                 var tanksPerRow = Math.Max(1, Convert.ToInt32(Math.Ceiling(_tanks.Count / (double)rowCount)));
@@ -149,7 +152,7 @@ namespace USR_ElectroPilot.Controls
 
                 for (var row = 0; row < rowCount; row++)
                 {
-                    DrawLineRow(g, row * tanksPerRow, plantLeft, plantTop + (row * rowGap), cellWidth, tanksPerRow, tankWidth, titleFont, smallFont, digitalFont, textBrush, railPen, thinRailPen);
+                    DrawLineRow(g, row, row * tanksPerRow, plantLeft, plantTop + (row * rowGap), cellWidth, tanksPerRow, tankWidth, titleFont, smallFont, digitalFont, textBrush, railPen, thinRailPen);
                 }
 
                 DrawHoist(g, plantLeft, plantTop, cellWidth, tanksPerRow, rowGap, titleFont, smallFont, textBrush);
@@ -157,11 +160,22 @@ namespace USR_ElectroPilot.Controls
             }
         }
 
-        private void DrawLineRow(Graphics g, int startIndex, int left, int top, int cellWidth, int tanksPerRow, int tankWidth, Font titleFont, Font smallFont, Font digitalFont, Brush textBrush, Pen railPen, Pen thinRailPen)
+        private void DrawLineRow(Graphics g, int rowNumber, int startIndex, int left, int top, int cellWidth, int tanksPerRow, int tankWidth, Font titleFont, Font smallFont, Font digitalFont, Brush textBrush, Pen railPen, Pen thinRailPen)
         {
             var railY = top + 20;
-            g.DrawLine(railPen, left, railY, Math.Min(Width - 30, left + (cellWidth * tanksPerRow)), railY);
-            g.DrawLine(thinRailPen, left, railY + 5, Math.Min(Width - 30, left + (cellWidth * tanksPerRow)), railY + 5);
+            var right = Math.Min(Width - 38, left + (cellWidth * tanksPerRow));
+
+            using (var rowBrush = new SolidBrush(Color.FromArgb(226, 236, 241)))
+            using (var rowPen = new Pen(Color.FromArgb(159, 181, 193)))
+            using (var rowLabelBrush = new SolidBrush(Color.FromArgb(38, 95, 143)))
+            {
+                g.FillRectangle(rowBrush, left - 8, top - 12, right - left + 16, 156);
+                g.DrawRectangle(rowPen, left - 8, top - 12, right - left + 16, 156);
+                g.DrawString("LINE " + (rowNumber + 1), titleFont, rowLabelBrush, left - 2, top - 10);
+            }
+
+            g.DrawLine(railPen, left, railY, right, railY);
+            g.DrawLine(thinRailPen, left, railY + 5, right, railY + 5);
 
             for (var column = 0; column < tanksPerRow; column++)
             {
@@ -181,18 +195,20 @@ namespace USR_ElectroPilot.Controls
             var tankRect = new Rectangle(x + 8, y + 24, Math.Max(42, width - 16), 94);
             var selected = _selectedTankId.HasValue && _selectedTankId.Value == tank.Id;
 
-            using (var borderPen = new Pen(selected ? Color.White : borderColor, selected ? 3F : 2F))
-            using (var fillBrush = new SolidBrush(Color.FromArgb(211, 239, 247)))
-            using (var liquidBrush = new SolidBrush(Color.FromArgb(85, 185, 205)))
-            using (var blackBrush = new SolidBrush(Color.FromArgb(18, 24, 28)))
+            using (var borderPen = new Pen(selected ? Color.FromArgb(255, 255, 255) : borderColor, selected ? 3F : 2F))
+            using (var liquidBrush = new LinearGradientBrush(tankRect, Color.FromArgb(56, 174, 190), Color.FromArgb(105, 205, 214), LinearGradientMode.Vertical))
+            using (var tankBackBrush = new SolidBrush(Color.FromArgb(232, 246, 249)))
             using (var redBrush = new SolidBrush(Color.FromArgb(225, 64, 55)))
             using (var greenBrush = new SolidBrush(Color.FromArgb(0, 170, 80)))
+            using (var capBrush = new SolidBrush(Color.FromArgb(39, 51, 62)))
+            using (var capTextBrush = new SolidBrush(Color.White))
             {
-                DrawCenteredString(g, tank.Name, titleFont, textBrush, new Rectangle(x, y, width, 16));
+                g.FillRectangle(capBrush, x + 5, y - 2, width - 10, 19);
+                DrawCenteredString(g, tank.Name, titleFont, capTextBrush, new Rectangle(x + 5, y - 2, width - 10, 18));
                 DrawFittedString(g, GetStepName(tank), smallFont, textBrush, new Rectangle(x, y + 15, width - 12, 14));
                 g.FillEllipse(string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ? redBrush : greenBrush, x + width - 14, y + 15, 9, 9);
 
-                g.FillRectangle(fillBrush, tankRect);
+                g.FillRectangle(tankBackBrush, tankRect);
                 var level = GetLevelPercent(tank);
                 var fillHeight = Convert.ToInt32(tankRect.Height * level);
                 g.FillRectangle(liquidBrush, tankRect.Left + 3, tankRect.Bottom - fillHeight, tankRect.Width - 6, Math.Max(0, fillHeight - 3));
@@ -257,23 +273,28 @@ namespace USR_ElectroPilot.Controls
 
         private void DrawSidePanel(Graphics g, Font titleFont, Font smallFont)
         {
-            using (var textBrush = new SolidBrush(Color.FromArgb(31, 45, 58)))
-            using (var panelBrush = new SolidBrush(Color.FromArgb(232, 238, 242)))
+            using (var textBrush = new SolidBrush(Color.FromArgb(229, 236, 241)))
+            using (var mutedBrush = new SolidBrush(Color.FromArgb(170, 188, 198)))
+            using (var panelBrush = new SolidBrush(Color.FromArgb(37, 52, 65)))
+            using (var infoBrush = new SolidBrush(Color.FromArgb(226, 236, 241)))
+            using (var infoTextBrush = new SolidBrush(Color.FromArgb(31, 45, 58)))
             using (var redBrush = new SolidBrush(Color.FromArgb(224, 58, 49)))
             {
-                g.FillRectangle(redBrush, 28, 20, 36, 36);
-                g.DrawString("ALARMS", titleFont, textBrush, 20, 62);
+                g.FillRectangle(panelBrush, 8, 46, 150, Height - 94);
+                g.FillRectangle(redBrush, 44, 72, 44, 44);
+                g.DrawString("ALARMS", titleFont, textBrush, 34, 124);
+                g.DrawString("OPERATOR PANEL", smallFont, mutedBrush, 24, 50);
 
-                DrawLegend(g, "PROCESS TIME SEC", 24, 124, Color.FromArgb(58, 150, 95), titleFont);
-                DrawLegend(g, "AUTO / MANUAL", 24, 148, Color.FromArgb(92, 157, 191), titleFont);
-                DrawLegend(g, "ACTUAL AMPERE", 24, 172, Color.FromArgb(74, 116, 180), titleFont);
-                DrawLegend(g, "TEMPERATURE C", 24, 196, Color.FromArgb(204, 91, 73), titleFont);
+                DrawLegend(g, "PROCESS TIME SEC", 24, 184, Color.FromArgb(58, 150, 95), titleFont);
+                DrawLegend(g, "AUTO / MANUAL", 24, 208, Color.FromArgb(92, 157, 191), titleFont);
+                DrawLegend(g, "ACTUAL AMPERE", 24, 232, Color.FromArgb(74, 116, 180), titleFont);
+                DrawLegend(g, "TEMPERATURE C", 24, 256, Color.FromArgb(204, 91, 73), titleFont);
 
-                g.FillRectangle(panelBrush, 20, 236, 126, 126);
-                g.DrawString("Information", smallFont, textBrush, 44, 256);
-                DrawFittedString(g, _currentStepName, smallFont, textBrush, new Rectangle(30, 286, 106, 18));
-                g.DrawString("Remaining: " + _remainingSeconds + "s", smallFont, textBrush, 30, 308);
-                g.DrawString(_emergencyStop ? "E-STOP ACTIVE" : "Safety OK", titleFont, textBrush, 30, 332);
+                g.FillRectangle(infoBrush, 24, 304, 118, 128);
+                g.DrawString("Information", smallFont, infoTextBrush, 50, 326);
+                DrawFittedString(g, _currentStepName, smallFont, infoTextBrush, new Rectangle(34, 356, 98, 18));
+                g.DrawString("Remaining: " + _remainingSeconds + "s", smallFont, infoTextBrush, 34, 380);
+                g.DrawString(_emergencyStop ? "E-STOP ACTIVE" : "Safety OK", titleFont, infoTextBrush, 34, 408);
             }
         }
 
@@ -309,7 +330,7 @@ namespace USR_ElectroPilot.Controls
         private void DrawLegend(Graphics g, string text, int x, int y, Color color, Font font)
         {
             using (var brush = new SolidBrush(color))
-            using (var textBrush = new SolidBrush(Color.FromArgb(35, 55, 75)))
+            using (var textBrush = new SolidBrush(Color.FromArgb(22, 32, 42)))
             {
                 g.FillRectangle(brush, x, y, 122, 17);
                 g.DrawString(text, font, textBrush, x + 4, y + 2);
@@ -325,6 +346,34 @@ namespace USR_ElectroPilot.Controls
                 g.FillRectangle(brush, rect);
                 g.DrawRectangle(pen, rect);
                 DrawCenteredString(g, text, font, textBrush, rect);
+            }
+        }
+
+        private void DrawPlantHeader(Graphics g, Font titleFont, Font smallFont)
+        {
+            using (var headerBrush = new LinearGradientBrush(new Rectangle(0, 0, Width, 42), Color.FromArgb(28, 39, 52), Color.FromArgb(45, 63, 79), LinearGradientMode.Horizontal))
+            using (var accentBrush = new SolidBrush(Color.FromArgb(0, 150, 136)))
+            using (var textBrush = new SolidBrush(Color.White))
+            using (var mutedBrush = new SolidBrush(Color.FromArgb(188, 205, 214)))
+            {
+                g.FillRectangle(headerBrush, 0, 0, Width, 42);
+                g.FillRectangle(accentBrush, 0, 39, Width, 3);
+                g.DrawString("ELECTROPLATING PLANT OVERVIEW", titleFont, textBrush, 18, 10);
+                g.DrawString((_autoMode ? "AUTO" : "MANUAL") + " | " + _hoistStatus + " | " + _currentStepName, smallFont, mutedBrush, 260, 13);
+            }
+        }
+
+        private void DrawPlantFrame(Graphics g)
+        {
+            using (var borderPen = new Pen(Color.FromArgb(71, 93, 110), 2F))
+            using (var gridPen = new Pen(Color.FromArgb(198, 213, 221)))
+            {
+                g.DrawRectangle(borderPen, 4, 44, Width - 9, Height - 49);
+
+                for (var x = 172; x < Width - 42; x += 64)
+                {
+                    g.DrawLine(gridPen, x, 48, x, Height - 10);
+                }
             }
         }
 

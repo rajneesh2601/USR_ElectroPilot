@@ -29,6 +29,7 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Updated simulator behavior so running tanks persist live values and generate warning/fault alarms.
 - Updated login flow so logout returns to the login screen and another user can sign in immediately.
 - Added visible default-user guidance on `LoginForm` and corrected the default `viewer` role.
+- Added a tank historian repository/service and changed tank trends to use recorded time-series data.
 
 ## Latest verified commits
 
@@ -43,6 +44,7 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - `292a9b1 fix: resolve all compile errors and warnings`
 - `d9cc17f feat: add SCADA operation controls from ch prompt`
 - `fe6f04a fix: return to login after user logout`
+- This follow-up change adds historical tank trend recording from `newprpmpt.txt` guidance.
 
 ## Release verification
 
@@ -51,4 +53,5 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Final smoke test covers database initialization, `MainForm` construction, and CSV export.
 - `ch.txt` follow-up smoke test covers default tank seeding, tank start/fault/reset flow, active alarm reset, and `TankControl` operation buttons.
 - Multi-login smoke test covers admin login, logout, viewer login, viewer role verification, and login form reset.
+- Historian smoke test covers tank snapshot recording, history retrieval, and `TrendForm` load using time-series data.
 - `v1.0.0` was published before the `ch.txt` follow-up additions.

@@ -1,9 +1,11 @@
 using System;
 using System.Drawing;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 using USR_ElectroPilot.Helpers;
+using USR_ElectroPilot.Models;
 using USR_ElectroPilot.Services;
 
 namespace USR_ElectroPilot.Forms
@@ -11,7 +13,9 @@ namespace USR_ElectroPilot.Forms
     public partial class TrendForm : Form
     {
         private readonly TankService _tankService = new TankService();
+        private readonly TankHistoryService _tankHistoryService = new TankHistoryService();
         private readonly RectifierService _rectifierService = new RectifierService();
+        private List<TankModel> _tanks = new List<TankModel>();
 
         public TrendForm()
         {
@@ -31,6 +35,9 @@ namespace USR_ElectroPilot.Forms
                 "Rectifier Voltage",
                 "Rectifier Current"
             });
+            dtFrom.Value = DateTime.Now.AddHours(-1);
+            dtTo.Value = DateTime.Now;
+            LoadTankChoices();
             cboMetric.SelectedIndex = 0;
             RefreshChart();
         }
@@ -41,6 +48,15 @@ namespace USR_ElectroPilot.Forms
         }
 
         private void CboMetric_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (IsHandleCreated)
+            {
+                cboTank.Enabled = cboMetric.Text.StartsWith("Tank", StringComparison.OrdinalIgnoreCase);
+                RefreshChart();
+            }
+        }
+
+        private void CboTank_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (IsHandleCreated)
             {
@@ -56,15 +72,16 @@ namespace USR_ElectroPilot.Forms
                 ChartType = SeriesChartType.Spline,
                 BorderWidth = 3,
                 Color = UiHelper.AccentColor,
-                XValueType = ChartValueType.String
+                XValueType = ChartValueType.DateTime
             };
 
             if (cboMetric.Text.StartsWith("Tank", StringComparison.OrdinalIgnoreCase))
             {
-                AddTankPoints(series);
+                AddTankHistoryPoints(series);
             }
             else
             {
+                series.XValueType = ChartValueType.String;
                 AddRectifierPoints(series);
             }
 
@@ -75,30 +92,40 @@ namespace USR_ElectroPilot.Forms
             chartTrends.ChartAreas[0].RecalculateAxesScale();
         }
 
-        private void AddTankPoints(Series series)
+        private void LoadTankChoices()
         {
-            foreach (var tank in _tankService.GetTanks().OrderBy(t => t.TankNumber))
+            _tanks = _tankService.GetTanks().OrderBy(t => t.TankNumber).ToList();
+            cboTank.DisplayMember = "Name";
+            cboTank.ValueMember = "Id";
+            cboTank.DataSource = _tanks;
+        }
+
+        private void AddTankHistoryPoints(Series series)
+        {
+            var tank = cboTank.SelectedItem as TankModel;
+            if (tank == null)
             {
-                var label = string.IsNullOrWhiteSpace(tank.Name) ? "Tank " + tank.TankNumber : tank.Name;
-                double value;
+                return;
+            }
 
-                switch (cboMetric.Text)
-                {
-                    case "Tank Temperature":
-                        value = tank.TemperatureCelsius;
-                        break;
-                    case "Tank Voltage":
-                        value = tank.Voltage;
-                        break;
-                    case "Tank Current":
-                        value = tank.CurrentAmps;
-                        break;
-                    default:
-                        value = tank.CapacityLiters <= 0 ? 0 : (tank.CurrentLevelLiters / tank.CapacityLiters) * 100;
-                        break;
-                }
+            foreach (var point in _tankHistoryService.GetHistory(tank.Id, dtFrom.Value, dtTo.Value))
+            {
+                series.Points.AddXY(point.RecordedAt, GetTankHistoryValue(point, tank));
+            }
+        }
 
-                series.Points.AddXY(label, value);
+        private double GetTankHistoryValue(TankHistoryModel point, TankModel tank)
+        {
+            switch (cboMetric.Text)
+            {
+                case "Tank Temperature":
+                    return point.TemperatureCelsius;
+                case "Tank Voltage":
+                    return point.Voltage;
+                case "Tank Current":
+                    return point.CurrentAmps;
+                default:
+                    return tank.CapacityLiters <= 0 ? 0 : (point.LevelLiters / tank.CapacityLiters) * 100;
             }
         }
 
@@ -127,7 +154,8 @@ namespace USR_ElectroPilot.Forms
             area.AxisY.MajorGrid.LineColor = Color.FromArgb(60, 70, 85);
             area.AxisX.LineColor = UiHelper.ForeColor;
             area.AxisY.LineColor = UiHelper.ForeColor;
-            area.AxisX.Interval = 1;
+            area.AxisX.LabelStyle.Format = "HH:mm:ss";
+            area.AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
             area.AxisX.TitleForeColor = UiHelper.ForeColor;
             area.AxisY.TitleForeColor = UiHelper.ForeColor;
         }

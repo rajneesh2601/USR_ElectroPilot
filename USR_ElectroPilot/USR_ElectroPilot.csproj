@@ -80,6 +80,7 @@
     <Compile Include="Data\ShiftReportRepository.cs" />
     <Compile Include="Data\SqliteConnectionFactory.cs" />
     <Compile Include="Data\SystemSettingRepository.cs" />
+    <Compile Include="Data\TankHistoryRepository.cs" />
     <Compile Include="Data\TankRepository.cs" />
     <Compile Include="Data\UserRepository.cs" />
     <Compile Include="Data\WagonRepository.cs" />
@@ -198,6 +199,7 @@
     <Compile Include="Services\ReportService.cs" />
     <Compile Include="Services\ShiftReportService.cs" />
     <Compile Include="Services\SimulatorService.cs" />
+    <Compile Include="Services\TankHistoryService.cs" />
     <Compile Include="Services\TankService.cs" />
     <Compile Include="Services\UserActivityService.cs" />
     <Compile Include="Services\WagonService.cs" />

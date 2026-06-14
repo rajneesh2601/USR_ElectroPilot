@@ -16,6 +16,7 @@ namespace USR_ElectroPilot.Forms
         private readonly RectifierService _rectifierService = new RectifierService();
         private readonly SimulatorService _simulatorService = new SimulatorService();
         private readonly AlarmService _alarmService = new AlarmService();
+        private readonly TankHistoryService _tankHistoryService = new TankHistoryService();
         private TankModel _selectedTank;
 
         public MainForm()
@@ -171,6 +172,7 @@ namespace USR_ElectroPilot.Forms
             foreach (var tank in tanks)
             {
                 _tankService.UpdateTank(tank);
+                _tankHistoryService.RecordSnapshot(tank);
                 RaiseStateAlarmIfNeeded(tank, previousStatuses.ContainsKey(tank.Id) ? previousStatuses[tank.Id] : string.Empty);
             }
 

@@ -225,7 +225,8 @@ namespace USR_ElectroPilot.Data
                 new { Key = "PlantName", Value = "USR ElectroPilot", Description = "Displayed plant name" },
                 new { Key = "AlarmRefreshSeconds", Value = "5", Description = "Alarm grid refresh interval" },
                 new { Key = "LoginLockoutMinutes", Value = "15", Description = "Lockout duration after failed logins" },
-                new { Key = "MaxFailedLoginAttempts", Value = "5", Description = "Failed login attempts before lockout" }
+                new { Key = "MaxFailedLoginAttempts", Value = "5", Description = "Failed login attempts before lockout" },
+                new { Key = "ScadaTankRows", Value = "1", Description = "Number of horizontal SCADA tank process lines" }
             };
 
             foreach (var setting in settings)

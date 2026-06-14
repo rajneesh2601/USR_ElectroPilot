@@ -206,6 +206,7 @@
     <Compile Include="Services\RecipeService.cs" />
     <Compile Include="Services\RectifierService.cs" />
     <Compile Include="Services\ReportService.cs" />
+    <Compile Include="Services\ScadaLayoutService.cs" />
     <Compile Include="Services\ShiftReportService.cs" />
     <Compile Include="Services\SimulatorService.cs" />
     <Compile Include="Services\TankHistoryService.cs" />

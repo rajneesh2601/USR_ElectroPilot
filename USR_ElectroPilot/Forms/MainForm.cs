@@ -19,6 +19,7 @@ namespace USR_ElectroPilot.Forms
         private readonly TankHistoryService _tankHistoryService = new TankHistoryService();
         private readonly ProcessStepService _processStepService = new ProcessStepService();
         private readonly HoistStatusService _hoistStatusService = new HoistStatusService();
+        private readonly ScadaLayoutService _scadaLayoutService = new ScadaLayoutService();
         private ScadaOverviewControl _scadaOverview;
         private TankModel _selectedTank;
         private List<ProcessStepModel> _processSteps = new List<ProcessStepModel>();
@@ -30,6 +31,7 @@ namespace USR_ElectroPilot.Forms
         private int _remainingStepSeconds;
         private double _hoistVisualIndex;
         private double _hoistTargetIndex;
+        private int _scadaTankRows = 1;
 
         public MainForm()
         {
@@ -43,6 +45,8 @@ namespace USR_ElectroPilot.Forms
             UiHelper.ApplyRoleRestrictions(btnAddTank, btnEditTank, btnRemoveTank);
             Text = Constants.ApplicationName + " - " + AppSession.Username;
             lblUser.Text = AppSession.Username + " (" + AppSession.Role + ")";
+            _scadaTankRows = _scadaLayoutService.GetTankRows();
+            ConfigureAddRowAccess();
             LoadProcessState();
             UpdateModeButtons();
             UpdateHeaderIndicators(null);
@@ -105,6 +109,19 @@ namespace USR_ElectroPilot.Forms
                 _selectedTank = null;
                 RefreshDashboard();
             }
+        }
+
+        private void BtnAddRow_Click(object sender, EventArgs e)
+        {
+            if (_scadaTankRows >= 4)
+            {
+                MessageBox.Show("Maximum SCADA tank rows reached.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            _scadaTankRows = _scadaLayoutService.AddTankRow();
+            UpdateAddRowText();
+            RefreshDashboard();
         }
 
         private void BtnAutoMode_Click(object sender, EventArgs e)
@@ -310,7 +327,8 @@ namespace USR_ElectroPilot.Forms
                 GetCurrentStepName(),
                 _remainingStepSeconds,
                 _autoMode,
-                _emergencyStop);
+                _emergencyStop,
+                _scadaTankRows);
             if (_selectedTank != null)
             {
                 _scadaOverview.SelectTank(_selectedTank.Id);
@@ -623,6 +641,20 @@ namespace USR_ElectroPilot.Forms
             btnEmergencyStop.Checked = _emergencyStop;
             btnStartCycle.Enabled = !_emergencyStop;
             btnStopCycle.Enabled = _cycleRunning;
+        }
+
+        private void ConfigureAddRowAccess()
+        {
+            var allowed = AppSession.HasRole(Constants.RoleAdmin);
+            btnAddRow.Available = allowed;
+            btnAddRow.Visible = allowed;
+            btnAddRow.Enabled = allowed;
+            UpdateAddRowText();
+        }
+
+        private void UpdateAddRowText()
+        {
+            btnAddRow.Text = "Add Row (" + _scadaTankRows + ")";
         }
 
         private void UpdateHeaderIndicators(PlantStatusModel status)

@@ -35,6 +35,8 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Added Auto/Manual, Start Cycle, Stop Cycle, Emergency Stop, and Reset controls to the main toolbar.
 - Added a timer-driven hoist/carrier simulation with persisted hoist state, process countdown, current stage display, and right-side dashboard cards.
 - Changed the SCADA mimic palette to a distinct steel/blue industrial style instead of matching the reference video colors.
+- Added an admin-only `Add Row` control that persists the number of SCADA tank lines in `SystemSettings`.
+- Improved SCADA overview spacing and status-card text fitting so longer process names do not clip.
 
 ## Latest verified commits
 
@@ -63,4 +65,5 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Historian smoke test covers tank snapshot recording, history retrieval, and `TrendForm` load using time-series data.
 - SCADA mimic verification covers debug/release build compilation and existing tank action wiring through the overview context menu.
 - Process SCADA smoke test covers `ProcessSteps`, `HoistStatus`, and off-screen render of the overview dashboard.
+- SCADA row smoke test covers persisted tank-row setting and off-screen rendering with multiple tank lines.
 - `v1.0.0` was published before the `ch.txt` follow-up additions.

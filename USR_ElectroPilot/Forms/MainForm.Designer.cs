@@ -8,6 +8,7 @@ namespace USR_ElectroPilot.Forms
         private System.Windows.Forms.ToolStripButton btnAddTank;
         private System.Windows.Forms.ToolStripButton btnEditTank;
         private System.Windows.Forms.ToolStripButton btnRemoveTank;
+        private System.Windows.Forms.ToolStripButton btnAddRow;
         private System.Windows.Forms.ToolStripButton btnAutoMode;
         private System.Windows.Forms.ToolStripButton btnManualMode;
         private System.Windows.Forms.ToolStripButton btnStartCycle;
@@ -52,6 +53,7 @@ namespace USR_ElectroPilot.Forms
             this.btnAddTank = new System.Windows.Forms.ToolStripButton();
             this.btnEditTank = new System.Windows.Forms.ToolStripButton();
             this.btnRemoveTank = new System.Windows.Forms.ToolStripButton();
+            this.btnAddRow = new System.Windows.Forms.ToolStripButton();
             this.btnAutoMode = new System.Windows.Forms.ToolStripButton();
             this.btnManualMode = new System.Windows.Forms.ToolStripButton();
             this.btnStartCycle = new System.Windows.Forms.ToolStripButton();
@@ -95,6 +97,7 @@ namespace USR_ElectroPilot.Forms
                 this.btnAddTank,
                 this.btnEditTank,
                 this.btnRemoveTank,
+                this.btnAddRow,
                 this.btnAutoMode,
                 this.btnManualMode,
                 this.btnStartCycle,
@@ -149,6 +152,15 @@ namespace USR_ElectroPilot.Forms
             this.btnRemoveTank.Size = new System.Drawing.Size(82, 22);
             this.btnRemoveTank.Text = "Remove Tank";
             this.btnRemoveTank.Click += new System.EventHandler(this.BtnRemoveTank_Click);
+
+            //
+            // btnAddRow
+            //
+            this.btnAddRow.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnAddRow.Name = "btnAddRow";
+            this.btnAddRow.Size = new System.Drawing.Size(58, 22);
+            this.btnAddRow.Text = "Add Row";
+            this.btnAddRow.Click += new System.EventHandler(this.BtnAddRow_Click);
 
             //
             // btnAutoMode

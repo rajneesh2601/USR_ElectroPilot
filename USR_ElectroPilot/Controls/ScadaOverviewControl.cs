@@ -22,6 +22,7 @@ namespace USR_ElectroPilot.Controls
         private int _remainingSeconds;
         private bool _autoMode = true;
         private bool _emergencyStop;
+        private int _requestedRows = 1;
 
         public event EventHandler<TankControlEventArgs> TankSelected;
         public event EventHandler<TankControlEventArgs> StartClicked;
@@ -38,7 +39,7 @@ namespace USR_ElectroPilot.Controls
             ConfigureMenu();
         }
 
-        public void BindData(IList<TankModel> tanks, IList<WagonModel> wagons, IList<ProcessStepModel> processSteps, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop)
+        public void BindData(IList<TankModel> tanks, IList<WagonModel> wagons, IList<ProcessStepModel> processSteps, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop, int requestedRows)
         {
             _tanks.Clear();
             if (tanks != null)
@@ -78,6 +79,7 @@ namespace USR_ElectroPilot.Controls
             _remainingSeconds = remainingSeconds;
             _autoMode = autoMode;
             _emergencyStop = emergencyStop;
+            _requestedRows = Math.Max(1, Math.Min(4, requestedRows));
 
             Invalidate();
         }
@@ -135,18 +137,19 @@ namespace USR_ElectroPilot.Controls
             {
                 DrawSidePanel(g, titleFont, smallFont);
 
-                var plantLeft = 170;
-                var plantTop = 38;
-                var plantRight = Width - 30;
+                var plantLeft = 172;
+                var plantTop = 56;
+                var plantRight = Width - 34;
                 var usableWidth = Math.Max(500, plantRight - plantLeft);
-                var tanksPerRow = Math.Max(4, Math.Min(10, usableWidth / 78));
+                var rowCount = GetVisibleRowCount(usableWidth);
+                var tanksPerRow = Math.Max(1, Convert.ToInt32(Math.Ceiling(_tanks.Count / (double)rowCount)));
                 var cellWidth = usableWidth / tanksPerRow;
-                var rowGap = Math.Max(180, (Height - 130) / 2);
+                var rowGap = Math.Max(158, Math.Min(220, (Height - 130) / rowCount));
+                var tankWidth = Math.Max(74, Math.Min(96, cellWidth - 14));
 
-                DrawLineRow(g, 0, plantLeft, plantTop, cellWidth, tanksPerRow, titleFont, smallFont, digitalFont, textBrush, railPen, thinRailPen);
-                if (_tanks.Count > tanksPerRow)
+                for (var row = 0; row < rowCount; row++)
                 {
-                    DrawLineRow(g, tanksPerRow, plantLeft, plantTop + rowGap, cellWidth, tanksPerRow, titleFont, smallFont, digitalFont, textBrush, railPen, thinRailPen);
+                    DrawLineRow(g, row * tanksPerRow, plantLeft, plantTop + (row * rowGap), cellWidth, tanksPerRow, tankWidth, titleFont, smallFont, digitalFont, textBrush, railPen, thinRailPen);
                 }
 
                 DrawHoist(g, plantLeft, plantTop, cellWidth, tanksPerRow, rowGap, titleFont, smallFont, textBrush);
@@ -154,7 +157,7 @@ namespace USR_ElectroPilot.Controls
             }
         }
 
-        private void DrawLineRow(Graphics g, int startIndex, int left, int top, int cellWidth, int tanksPerRow, Font titleFont, Font smallFont, Font digitalFont, Brush textBrush, Pen railPen, Pen thinRailPen)
+        private void DrawLineRow(Graphics g, int startIndex, int left, int top, int cellWidth, int tanksPerRow, int tankWidth, Font titleFont, Font smallFont, Font digitalFont, Brush textBrush, Pen railPen, Pen thinRailPen)
         {
             var railY = top + 20;
             g.DrawLine(railPen, left, railY, Math.Min(Width - 30, left + (cellWidth * tanksPerRow)), railY);
@@ -168,7 +171,7 @@ namespace USR_ElectroPilot.Controls
                     break;
                 }
 
-                DrawTankCell(g, _tanks[index], left + (column * cellWidth) + 6, top + 35, Math.Min(68, cellWidth - 10), titleFont, smallFont, digitalFont, textBrush);
+                DrawTankCell(g, _tanks[index], left + (column * cellWidth) + ((cellWidth - tankWidth) / 2), top + 35, tankWidth, titleFont, smallFont, digitalFont, textBrush);
             }
         }
 
@@ -186,7 +189,7 @@ namespace USR_ElectroPilot.Controls
             using (var greenBrush = new SolidBrush(Color.FromArgb(0, 170, 80)))
             {
                 DrawCenteredString(g, tank.Name, titleFont, textBrush, new Rectangle(x, y, width, 16));
-                g.DrawString(GetStepName(tank), smallFont, textBrush, x + 2, y + 15);
+                DrawFittedString(g, GetStepName(tank), smallFont, textBrush, new Rectangle(x, y + 15, width - 12, 14));
                 g.FillEllipse(string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ? redBrush : greenBrush, x + width - 14, y + 15, 9, 9);
 
                 g.FillRectangle(fillBrush, tankRect);
@@ -268,7 +271,7 @@ namespace USR_ElectroPilot.Controls
 
                 g.FillRectangle(panelBrush, 20, 236, 126, 126);
                 g.DrawString("Information", smallFont, textBrush, 44, 256);
-                g.DrawString(_currentStepName, smallFont, textBrush, 30, 286);
+                DrawFittedString(g, _currentStepName, smallFont, textBrush, new Rectangle(30, 286, 106, 18));
                 g.DrawString("Remaining: " + _remainingSeconds + "s", smallFont, textBrush, 30, 308);
                 g.DrawString(_emergencyStop ? "E-STOP ACTIVE" : "Safety OK", titleFont, textBrush, 30, 332);
             }
@@ -333,6 +336,29 @@ namespace USR_ElectroPilot.Controls
                 format.LineAlignment = StringAlignment.Center;
                 g.DrawString(text, font, brush, rect, format);
             }
+        }
+
+        private static void DrawFittedString(Graphics g, string text, Font font, Brush brush, Rectangle rect)
+        {
+            using (var format = new StringFormat())
+            {
+                format.Trimming = StringTrimming.EllipsisCharacter;
+                format.FormatFlags = StringFormatFlags.NoWrap;
+                g.DrawString(text, font, brush, rect, format);
+            }
+        }
+
+        private int GetVisibleRowCount(int usableWidth)
+        {
+            if (_tanks.Count == 0)
+            {
+                return 1;
+            }
+
+            var minCellWidth = 106;
+            var maxTanksPerRow = Math.Max(1, usableWidth / minCellWidth);
+            var neededRows = Convert.ToInt32(Math.Ceiling(_tanks.Count / (double)maxTanksPerRow));
+            return Math.Max(1, Math.Min(4, Math.Max(_requestedRows, neededRows)));
         }
 
         private void ConfigureMenu()

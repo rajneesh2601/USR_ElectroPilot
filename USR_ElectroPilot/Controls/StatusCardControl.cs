@@ -13,7 +13,7 @@ namespace USR_ElectroPilot.Controls
         public StatusCardControl()
         {
             DoubleBuffered = true;
-            Size = new Size(180, 90);
+            Size = new Size(198, 98);
         }
 
         public string Title
@@ -42,11 +42,30 @@ namespace USR_ElectroPilot.Controls
             using (var borderPen = new Pen(UiHelper.AccentColor, 2F))
             using (var titleBrush = new SolidBrush(Color.FromArgb(170, 180, 190)))
             using (var valueBrush = new SolidBrush(UiHelper.ForeColor))
+            using (var titleFont = new Font("Segoe UI", 9F))
+            using (var valueFont = CreateValueFont(Value))
+            using (var captionFont = new Font("Segoe UI", 8.5F))
             {
                 e.Graphics.DrawRectangle(borderPen, 4, 4, Width - 9, Height - 9);
-                e.Graphics.DrawString(Title, UiHelper.DefaultFont, titleBrush, 12, 10);
-                e.Graphics.DrawString(Value, new Font("Segoe UI Semibold", 20F, FontStyle.Bold), valueBrush, 12, 30);
-                e.Graphics.DrawString(Caption, UiHelper.DefaultFont, titleBrush, 12, Height - 24);
+                DrawFittedText(e.Graphics, Title, titleFont, titleBrush, new Rectangle(12, 10, Width - 24, 18));
+                DrawFittedText(e.Graphics, Value, valueFont, valueBrush, new Rectangle(12, 34, Width - 24, 32));
+                DrawFittedText(e.Graphics, Caption, captionFont, titleBrush, new Rectangle(12, Height - 25, Width - 24, 18));
+            }
+        }
+
+        private static Font CreateValueFont(string value)
+        {
+            var size = string.IsNullOrEmpty(value) || value.Length <= 8 ? 20F : 15F;
+            return new Font("Segoe UI Semibold", size, FontStyle.Bold);
+        }
+
+        private static void DrawFittedText(Graphics graphics, string text, Font font, Brush brush, Rectangle bounds)
+        {
+            using (var format = new StringFormat())
+            {
+                format.Trimming = StringTrimming.EllipsisCharacter;
+                format.FormatFlags = StringFormatFlags.NoWrap;
+                graphics.DrawString(text, font, brush, bounds, format);
             }
         }
     }

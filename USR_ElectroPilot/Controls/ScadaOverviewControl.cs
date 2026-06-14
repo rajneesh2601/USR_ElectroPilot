@@ -11,10 +11,17 @@ namespace USR_ElectroPilot.Controls
     {
         private readonly List<TankModel> _tanks = new List<TankModel>();
         private readonly List<WagonModel> _wagons = new List<WagonModel>();
+        private readonly List<ProcessStepModel> _processSteps = new List<ProcessStepModel>();
         private readonly Dictionary<int, Rectangle> _tankHitBoxes = new Dictionary<int, Rectangle>();
         private readonly ContextMenuStrip _tankMenu = new ContextMenuStrip();
         private int _contextTankId;
         private int? _selectedTankId;
+        private double _hoistPositionIndex;
+        private string _hoistStatus = "Idle";
+        private string _currentStepName = "Idle";
+        private int _remainingSeconds;
+        private bool _autoMode = true;
+        private bool _emergencyStop;
 
         public event EventHandler<TankControlEventArgs> TankSelected;
         public event EventHandler<TankControlEventArgs> StartClicked;
@@ -26,12 +33,12 @@ namespace USR_ElectroPilot.Controls
         public ScadaOverviewControl()
         {
             DoubleBuffered = true;
-            BackColor = Color.FromArgb(238, 190, 180);
+            BackColor = Color.FromArgb(222, 231, 236);
             MinimumSize = new Size(900, 480);
             ConfigureMenu();
         }
 
-        public void BindData(IList<TankModel> tanks, IList<WagonModel> wagons)
+        public void BindData(IList<TankModel> tanks, IList<WagonModel> wagons, IList<ProcessStepModel> processSteps, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop)
         {
             _tanks.Clear();
             if (tanks != null)
@@ -55,6 +62,22 @@ namespace USR_ElectroPilot.Controls
                     _wagons.Add(wagon);
                 }
             }
+
+            _processSteps.Clear();
+            if (processSteps != null)
+            {
+                foreach (var step in processSteps)
+                {
+                    _processSteps.Add(step);
+                }
+            }
+
+            _hoistPositionIndex = hoistPositionIndex;
+            _hoistStatus = hoistStatus == null || string.IsNullOrEmpty(hoistStatus.Status) ? "Idle" : hoistStatus.Status;
+            _currentStepName = string.IsNullOrEmpty(currentStepName) ? "Idle" : currentStepName;
+            _remainingSeconds = remainingSeconds;
+            _autoMode = autoMode;
+            _emergencyStop = emergencyStop;
 
             Invalidate();
         }
@@ -106,9 +129,9 @@ namespace USR_ElectroPilot.Controls
             using (var titleFont = new Font("Segoe UI Semibold", 9F, FontStyle.Bold))
             using (var smallFont = new Font("Segoe UI", 7.5F))
             using (var digitalFont = new Font("Consolas", 8.5F, FontStyle.Bold))
-            using (var textBrush = new SolidBrush(Color.FromArgb(35, 55, 75)))
-            using (var railPen = new Pen(Color.FromArgb(67, 139, 204), 5F))
-            using (var thinRailPen = new Pen(Color.FromArgb(67, 139, 204), 2F))
+            using (var textBrush = new SolidBrush(Color.FromArgb(31, 45, 58)))
+            using (var railPen = new Pen(Color.FromArgb(38, 95, 143), 5F))
+            using (var thinRailPen = new Pen(Color.FromArgb(93, 157, 191), 2F))
             {
                 DrawSidePanel(g, titleFont, smallFont);
 
@@ -126,7 +149,7 @@ namespace USR_ElectroPilot.Controls
                     DrawLineRow(g, tanksPerRow, plantLeft, plantTop + rowGap, cellWidth, tanksPerRow, titleFont, smallFont, digitalFont, textBrush, railPen, thinRailPen);
                 }
 
-                DrawWagons(g, plantLeft, plantTop, cellWidth, tanksPerRow, rowGap, titleFont, smallFont, textBrush);
+                DrawHoist(g, plantLeft, plantTop, cellWidth, tanksPerRow, rowGap, titleFont, smallFont, textBrush);
                 DrawWagonSummary(g, plantLeft, Height - 80, titleFont, smallFont);
             }
         }
@@ -163,7 +186,7 @@ namespace USR_ElectroPilot.Controls
             using (var greenBrush = new SolidBrush(Color.FromArgb(0, 170, 80)))
             {
                 DrawCenteredString(g, tank.Name, titleFont, textBrush, new Rectangle(x, y, width, 16));
-                g.DrawString(tank.TemperatureCelsius.ToString("0.0") + " C", smallFont, textBrush, x + 2, y + 15);
+                g.DrawString(GetStepName(tank), smallFont, textBrush, x + 2, y + 15);
                 g.FillEllipse(string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ? redBrush : greenBrush, x + width - 14, y + 15, 9, 9);
 
                 g.FillRectangle(fillBrush, tankRect);
@@ -174,6 +197,7 @@ namespace USR_ElectroPilot.Controls
 
                 DrawDigitalBox(g, new Rectangle(x + 10, y + 44, width - 20, 16), tank.CurrentAmps.ToString("0"), digitalFont);
                 DrawDigitalBox(g, new Rectangle(x + 10, y + 64, width - 20, 16), tank.Voltage.ToString("0.0"), digitalFont);
+                DrawDigitalBox(g, new Rectangle(x + 10, y + 84, width - 20, 16), tank.TemperatureCelsius.ToString("0"), digitalFont);
 
                 if (string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(tank.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase))
@@ -181,73 +205,72 @@ namespace USR_ElectroPilot.Controls
                     g.FillRectangle(redBrush, x + 11, y + 100, width - 22, 10);
                 }
 
-                DrawCenteredString(g, tank.Status, smallFont, textBrush, new Rectangle(x, y + 124, width, 14));
+                DrawCenteredString(g, tank.Status + "  L" + Convert.ToInt32(GetLevelPercent(tank) * 100) + "%", smallFont, textBrush, new Rectangle(x, y + 124, width, 14));
             }
 
             _tankHitBoxes[tank.Id] = new Rectangle(x, y, width, 142);
         }
 
-        private void DrawWagons(Graphics g, int left, int top, int cellWidth, int tanksPerRow, int rowGap, Font titleFont, Font smallFont, Brush textBrush)
+        private void DrawHoist(Graphics g, int left, int top, int cellWidth, int tanksPerRow, int rowGap, Font titleFont, Font smallFont, Brush textBrush)
         {
-            for (var index = 0; index < _wagons.Count; index++)
+            if (_tanks.Count == 0)
             {
-                var wagon = _wagons[index];
-                var tankIndex = FindTankIndex(wagon.CurrentTankId);
-                var row = tankIndex >= tanksPerRow ? 1 : 0;
-                var column = tankIndex >= 0 ? tankIndex % tanksPerRow : Math.Min(index * 3, tanksPerRow - 1);
-                var x = left + (column * cellWidth) + (cellWidth / 2) - 18;
-                var y = top + (row * rowGap) - 35;
-                DrawWagon(g, wagon, x, y, titleFont, smallFont, textBrush);
+                return;
             }
+
+            var clampedIndex = Math.Max(0, Math.Min(_tanks.Count - 1, _hoistPositionIndex));
+            var row = Convert.ToInt32(Math.Floor(clampedIndex / tanksPerRow));
+            var columnPosition = clampedIndex - (row * tanksPerRow);
+            var x = left + Convert.ToInt32(columnPosition * cellWidth) + (cellWidth / 2) - 22;
+            var y = top + (row * rowGap) - 40;
+            DrawHoistBody(g, x, y, titleFont, smallFont, textBrush);
         }
 
-        private void DrawWagon(Graphics g, WagonModel wagon, int x, int y, Font titleFont, Font smallFont, Brush textBrush)
+        private void DrawHoistBody(Graphics g, int x, int y, Font titleFont, Font smallFont, Brush textBrush)
         {
-            using (var yellowBrush = new SolidBrush(Color.FromArgb(246, 226, 57)))
-            using (var darkBrush = new SolidBrush(Color.FromArgb(40, 45, 48)))
-            using (var borderPen = new Pen(Color.FromArgb(80, 100, 40), 2F))
+            using (var hoistBrush = new SolidBrush(_emergencyStop ? Color.FromArgb(190, 45, 42) : Color.FromArgb(245, 180, 45)))
+            using (var darkBrush = new SolidBrush(Color.FromArgb(39, 51, 62)))
+            using (var borderPen = new Pen(Color.FromArgb(25, 45, 60), 2F))
             using (var redBrush = new SolidBrush(Color.FromArgb(225, 60, 45)))
             using (var greenBrush = new SolidBrush(Color.FromArgb(0, 170, 70)))
             {
                 g.FillRectangle(darkBrush, x - 22, y + 32, 22, 10);
-                g.FillRectangle(yellowBrush, x, y, 36, 76);
+                g.FillRectangle(hoistBrush, x, y, 44, 78);
+                g.FillRectangle(darkBrush, x + 15, y + 78, 14, 32);
+                g.FillRectangle(darkBrush, x + 7, y + 110, 30, 8);
                 g.DrawRectangle(borderPen, x, y, 36, 76);
-                g.DrawString(wagon.WagonCode, smallFont, textBrush, x - 2, y - 16);
+                g.DrawString("HOIST", titleFont, textBrush, x - 2, y - 18);
 
                 for (var i = 0; i < 4; i++)
                 {
-                    var active = IsWagonActive(wagon, i);
+                    var active = IsHoistLampActive(i);
                     g.FillEllipse(active ? greenBrush : redBrush, x + 12, y + 8 + (i * 15), 12, 12);
                 }
 
-                g.DrawString(wagon.State, smallFont, textBrush, x + 42, y + 18);
-                if (wagon.CurrentTankId.HasValue)
-                {
-                    g.DrawString("T" + wagon.CurrentTankId.Value, titleFont, textBrush, x + 42, y + 34);
-                }
+                g.DrawString(_hoistStatus, smallFont, textBrush, x + 50, y + 16);
+                g.DrawString(_autoMode ? "AUTO" : "MANUAL", titleFont, textBrush, x + 50, y + 32);
             }
         }
 
         private void DrawSidePanel(Graphics g, Font titleFont, Font smallFont)
         {
-            using (var textBrush = new SolidBrush(Color.FromArgb(35, 55, 75)))
-            using (var panelBrush = new SolidBrush(Color.FromArgb(232, 226, 218)))
+            using (var textBrush = new SolidBrush(Color.FromArgb(31, 45, 58)))
+            using (var panelBrush = new SolidBrush(Color.FromArgb(232, 238, 242)))
             using (var redBrush = new SolidBrush(Color.FromArgb(224, 58, 49)))
-            using (var yellowBrush = new SolidBrush(Color.FromArgb(242, 216, 35)))
-            using (var blueBrush = new SolidBrush(Color.FromArgb(58, 134, 205)))
             {
                 g.FillRectangle(redBrush, 28, 20, 36, 36);
                 g.DrawString("ALARMS", titleFont, textBrush, 20, 62);
 
-                DrawLegend(g, "ACTUAL PRO. TIME SEC", 24, 130, Color.FromArgb(0, 120, 65), titleFont);
-                DrawLegend(g, "PREV. PRO. TIME SEC", 24, 154, Color.FromArgb(218, 196, 42), titleFont);
-                DrawLegend(g, "ACTUAL AMPERE", 24, 178, Color.FromArgb(50, 120, 202), titleFont);
-                DrawLegend(g, "TEMPERATURE C", 24, 202, Color.FromArgb(188, 45, 48), titleFont);
+                DrawLegend(g, "PROCESS TIME SEC", 24, 124, Color.FromArgb(58, 150, 95), titleFont);
+                DrawLegend(g, "AUTO / MANUAL", 24, 148, Color.FromArgb(92, 157, 191), titleFont);
+                DrawLegend(g, "ACTUAL AMPERE", 24, 172, Color.FromArgb(74, 116, 180), titleFont);
+                DrawLegend(g, "TEMPERATURE C", 24, 196, Color.FromArgb(204, 91, 73), titleFont);
 
-                g.FillRectangle(panelBrush, 20, 240, 120, 92);
+                g.FillRectangle(panelBrush, 20, 236, 126, 126);
                 g.DrawString("Information", smallFont, textBrush, 44, 256);
-                g.DrawString("Reset", smallFont, textBrush, 62, 286);
-                g.DrawString("READ CHMB 01", smallFont, textBrush, 38, 316);
+                g.DrawString(_currentStepName, smallFont, textBrush, 30, 286);
+                g.DrawString("Remaining: " + _remainingSeconds + "s", smallFont, textBrush, 30, 308);
+                g.DrawString(_emergencyStop ? "E-STOP ACTIVE" : "Safety OK", titleFont, textBrush, 30, 332);
             }
         }
 
@@ -258,16 +281,16 @@ namespace USR_ElectroPilot.Controls
                 return;
             }
 
-            using (var panelBrush = new SolidBrush(Color.FromArgb(226, 236, 197)))
-            using (var borderPen = new Pen(Color.FromArgb(92, 160, 70), 2F))
-            using (var cellBrush = new SolidBrush(Color.FromArgb(190, 235, 38)))
-            using (var textBrush = new SolidBrush(Color.FromArgb(30, 70, 45)))
+            using (var panelBrush = new SolidBrush(Color.FromArgb(232, 238, 242)))
+            using (var borderPen = new Pen(Color.FromArgb(62, 132, 166), 2F))
+            using (var cellBrush = new SolidBrush(Color.FromArgb(206, 226, 235)))
+            using (var textBrush = new SolidBrush(Color.FromArgb(31, 45, 58)))
             {
                 var width = Math.Min(380, Width - left - 210);
                 var rect = new Rectangle(left, top, width, 58);
                 g.FillRectangle(panelBrush, rect);
                 g.DrawRectangle(borderPen, rect);
-                g.DrawString("Wagon Status", titleFont, textBrush, left + 8, top + 6);
+                g.DrawString("Hoist / Carrier Status", titleFont, textBrush, left + 8, top + 6);
 
                 for (var i = 0; i < _wagons.Count && i < 4; i++)
                 {
@@ -285,7 +308,7 @@ namespace USR_ElectroPilot.Controls
             using (var brush = new SolidBrush(color))
             using (var textBrush = new SolidBrush(Color.FromArgb(35, 55, 75)))
             {
-                g.FillRectangle(brush, x, y, 116, 17);
+                g.FillRectangle(brush, x, y, 122, 17);
                 g.DrawString(text, font, textBrush, x + 4, y + 2);
             }
         }
@@ -362,6 +385,45 @@ namespace USR_ElectroPilot.Controls
             if (string.Equals(wagon.State, Constants.WagonRunning, StringComparison.OrdinalIgnoreCase))
             {
                 return lampIndex < 2;
+            }
+
+            return lampIndex == 0;
+        }
+
+        private string GetStepName(TankModel tank)
+        {
+            foreach (var step in _processSteps)
+            {
+                if (step.TankId == tank.Id)
+                {
+                    return step.StepNo + ". " + step.StepName;
+                }
+            }
+
+            return tank.ChemicalName;
+        }
+
+        private bool IsHoistLampActive(int lampIndex)
+        {
+            if (_emergencyStop)
+            {
+                return false;
+            }
+
+            if (string.Equals(_hoistStatus, "Moving", StringComparison.OrdinalIgnoreCase))
+            {
+                return lampIndex < 2;
+            }
+
+            if (string.Equals(_hoistStatus, "Processing", StringComparison.OrdinalIgnoreCase))
+            {
+                return lampIndex == 0 || lampIndex == 2;
+            }
+
+            if (string.Equals(_hoistStatus, "Loading", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(_hoistStatus, "Unloading", StringComparison.OrdinalIgnoreCase))
+            {
+                return lampIndex != 3;
             }
 
             return lampIndex == 0;

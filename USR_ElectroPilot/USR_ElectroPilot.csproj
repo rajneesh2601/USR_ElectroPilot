@@ -78,6 +78,8 @@
     <Compile Include="Data\AlarmRepository.cs" />
     <Compile Include="Data\AuditRepository.cs" />
     <Compile Include="Data\LoadRepository.cs" />
+    <Compile Include="Data\HoistStatusRepository.cs" />
+    <Compile Include="Data\ProcessStepRepository.cs" />
     <Compile Include="Data\RecipeRepository.cs" />
     <Compile Include="Data\RectifierRepository.cs" />
     <Compile Include="Data\ShiftReportRepository.cs" />
@@ -97,6 +99,8 @@
     <Compile Include="Models\AlarmModel.cs" />
     <Compile Include="Models\AuditLogModel.cs" />
     <Compile Include="Models\LoadModel.cs" />
+    <Compile Include="Models\HoistStatusModel.cs" />
+    <Compile Include="Models\ProcessStepModel.cs" />
     <Compile Include="Models\RecipeModel.cs" />
     <Compile Include="Models\RectifierModel.cs" />
     <Compile Include="Models\ShiftReportModel.cs" />
@@ -196,7 +200,9 @@
     <Compile Include="Services\AlarmService.cs" />
     <Compile Include="Services\AuthService.cs" />
     <Compile Include="Services\DashboardService.cs" />
+    <Compile Include="Services\HoistStatusService.cs" />
     <Compile Include="Services\LoadService.cs" />
+    <Compile Include="Services\ProcessStepService.cs" />
     <Compile Include="Services\RecipeService.cs" />
     <Compile Include="Services\RectifierService.cs" />
     <Compile Include="Services\ReportService.cs" />

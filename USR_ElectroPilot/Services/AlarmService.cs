@@ -25,6 +25,11 @@ namespace USR_ElectroPilot.Services
         {
             DatabaseHelper.InitializeDatabase();
 
+            if (_alarmRepository.HasActive(source, message))
+            {
+                return 0;
+            }
+
             return _alarmRepository.Add(new AlarmModel
             {
                 Source = source,

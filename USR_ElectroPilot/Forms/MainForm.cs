@@ -17,8 +17,19 @@ namespace USR_ElectroPilot.Forms
         private readonly SimulatorService _simulatorService = new SimulatorService();
         private readonly AlarmService _alarmService = new AlarmService();
         private readonly TankHistoryService _tankHistoryService = new TankHistoryService();
+        private readonly ProcessStepService _processStepService = new ProcessStepService();
+        private readonly HoistStatusService _hoistStatusService = new HoistStatusService();
         private ScadaOverviewControl _scadaOverview;
         private TankModel _selectedTank;
+        private List<ProcessStepModel> _processSteps = new List<ProcessStepModel>();
+        private HoistStatusModel _hoistStatus = new HoistStatusModel { Status = "Idle" };
+        private bool _autoMode = true;
+        private bool _cycleRunning;
+        private bool _emergencyStop;
+        private int _currentStepIndex;
+        private int _remainingStepSeconds;
+        private double _hoistVisualIndex;
+        private double _hoistTargetIndex;
 
         public MainForm()
         {
@@ -32,6 +43,8 @@ namespace USR_ElectroPilot.Forms
             UiHelper.ApplyRoleRestrictions(btnAddTank, btnEditTank, btnRemoveTank);
             Text = Constants.ApplicationName + " - " + AppSession.Username;
             lblUser.Text = AppSession.Username + " (" + AppSession.Role + ")";
+            LoadProcessState();
+            UpdateModeButtons();
             UpdateHeaderIndicators(null);
             RefreshDashboard();
             simulatorTimer.Start();
@@ -92,6 +105,73 @@ namespace USR_ElectroPilot.Forms
                 _selectedTank = null;
                 RefreshDashboard();
             }
+        }
+
+        private void BtnAutoMode_Click(object sender, EventArgs e)
+        {
+            _autoMode = true;
+            UpdateModeButtons();
+            RefreshDashboard();
+        }
+
+        private void BtnManualMode_Click(object sender, EventArgs e)
+        {
+            _autoMode = false;
+            _cycleRunning = false;
+            _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
+            LoadProcessState();
+            UpdateModeButtons();
+            RefreshDashboard();
+        }
+
+        private void BtnStartCycle_Click(object sender, EventArgs e)
+        {
+            if (_emergencyStop)
+            {
+                MessageBox.Show("Reset emergency stop before starting cycle.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            _autoMode = true;
+            _cycleRunning = true;
+            _currentStepIndex = 0;
+            _remainingStepSeconds = 0;
+            UpdateModeButtons();
+            AdvanceToCurrentStepTarget();
+            RefreshDashboard();
+        }
+
+        private void BtnStopCycle_Click(object sender, EventArgs e)
+        {
+            _cycleRunning = false;
+            _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
+            LoadProcessState();
+            UpdateModeButtons();
+            RefreshDashboard();
+        }
+
+        private void BtnEmergencyStop_Click(object sender, EventArgs e)
+        {
+            _emergencyStop = true;
+            _cycleRunning = false;
+            _hoistStatusService.Save(GetCurrentStepTankId(), "Emergency Stop");
+            _alarmService.RaiseAlarm("Hoist", "Critical", "Emergency stop activated.");
+            LoadProcessState();
+            UpdateModeButtons();
+            RefreshDashboard();
+        }
+
+        private void BtnReset_Click(object sender, EventArgs e)
+        {
+            _emergencyStop = false;
+            _cycleRunning = false;
+            _currentStepIndex = 0;
+            _remainingStepSeconds = 0;
+            _alarmService.ResetActiveAlarms();
+            _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
+            LoadProcessState();
+            UpdateModeButtons();
+            RefreshDashboard();
         }
 
         private void BtnStartAll_Click(object sender, EventArgs e)
@@ -162,12 +242,14 @@ namespace USR_ElectroPilot.Forms
 
             _simulatorService.SimulateTanks(tanks);
             _simulatorService.SimulateRectifiers(rectifiers);
+            SimulateProcessCycle(tanks);
 
             foreach (var tank in tanks)
             {
                 _tankService.UpdateTank(tank);
                 _tankHistoryService.RecordSnapshot(tank);
                 RaiseStateAlarmIfNeeded(tank, previousStatuses.ContainsKey(tank.Id) ? previousStatuses[tank.Id] : string.Empty);
+                RaiseProcessAlarmIfNeeded(tank);
             }
 
             RefreshLiveDashboard();
@@ -186,10 +268,12 @@ namespace USR_ElectroPilot.Forms
         private void LoadStatusCards(PlantStatusModel status)
         {
             pnlStatus.Controls.Clear();
-            pnlStatus.Controls.Add(CreateStatusCard("Tanks", status.ActiveTankCount.ToString(), "Active"));
-            pnlStatus.Controls.Add(CreateStatusCard("Alarms", status.ActiveAlarmCount.ToString(), "Active"));
-            pnlStatus.Controls.Add(CreateStatusCard("Rectifiers", status.RunningRectifierCount.ToString(), "Running"));
-            pnlStatus.Controls.Add(CreateStatusCard("Loads", status.QueuedLoadCount.ToString(), "Queued"));
+            pnlStatus.Controls.Add(CreateStatusCard("Total Tanks", status.TotalTankCount.ToString(), "Configured"));
+            pnlStatus.Controls.Add(CreateStatusCard("Running Tanks", status.RunningTankCount.ToString(), "Running"));
+            pnlStatus.Controls.Add(CreateStatusCard("Fault Tanks", status.FaultTankCount.ToString(), "Fault"));
+            pnlStatus.Controls.Add(CreateStatusCard("Process Step", status.CurrentProcessStep, _remainingStepSeconds > 0 ? _remainingStepSeconds + " sec left" : "Ready"));
+            pnlStatus.Controls.Add(CreateStatusCard("Hoist Position", status.HoistPosition, status.HoistState));
+            pnlStatus.Controls.Add(CreateStatusCard("Active Alarms", status.ActiveAlarmCount.ToString(), "Active"));
         }
 
         private StatusCardControl CreateStatusCard(string title, string value, string caption)
@@ -217,7 +301,16 @@ namespace USR_ElectroPilot.Forms
                 pnlTanks.Controls.Add(_scadaOverview);
             }
 
-            _scadaOverview.BindData(_tankService.GetTanks(), _wagonService.GetWagons());
+            _scadaOverview.BindData(
+                _tankService.GetTanks(),
+                _wagonService.GetWagons(),
+                _processSteps,
+                _hoistStatus,
+                _hoistVisualIndex,
+                GetCurrentStepName(),
+                _remainingStepSeconds,
+                _autoMode,
+                _emergencyStop);
             if (_selectedTank != null)
             {
                 _scadaOverview.SelectTank(_selectedTank.Id);
@@ -348,6 +441,188 @@ namespace USR_ElectroPilot.Forms
             {
                 _alarmService.RaiseAlarm(tank.Name, "Warning", "Tank entered warning state.");
             }
+        }
+
+        private void LoadProcessState()
+        {
+            _processSteps = _processStepService.GetActiveSteps();
+            _hoistStatus = _hoistStatusService.GetCurrent();
+            _hoistVisualIndex = GetTankIndex(_hoistStatus.CurrentTankId);
+            _hoistTargetIndex = _hoistVisualIndex;
+        }
+
+        private void SimulateProcessCycle(List<TankModel> tanks)
+        {
+            if (_emergencyStop)
+            {
+                _hoistStatus.Status = "Emergency Stop";
+                return;
+            }
+
+            if (!_cycleRunning || !_autoMode || _processSteps.Count == 0)
+            {
+                return;
+            }
+
+            var currentStep = _processSteps[_currentStepIndex];
+            _hoistTargetIndex = GetTankIndex(currentStep.TankId);
+
+            if (Math.Abs(_hoistVisualIndex - _hoistTargetIndex) > 0.05)
+            {
+                _hoistStatus.Status = "Moving";
+                _hoistVisualIndex += _hoistVisualIndex < _hoistTargetIndex ? 0.18 : -0.18;
+                if (Math.Abs(_hoistVisualIndex - _hoistTargetIndex) > 20)
+                {
+                    _alarmService.RaiseAlarm("Hoist", "Critical", "Hoist movement error.");
+                }
+
+                return;
+            }
+
+            _hoistVisualIndex = _hoistTargetIndex;
+
+            if (_remainingStepSeconds <= 0)
+            {
+                _remainingStepSeconds = currentStep.DurationSeconds;
+                _hoistStatus.CurrentTankId = currentStep.TankId;
+                _hoistStatus.Status = GetStepHoistState(currentStep);
+                _hoistStatusService.Save(currentStep.TankId, _hoistStatus.Status);
+                SetOnlyCurrentTankRunning(tanks, currentStep.TankId);
+                return;
+            }
+
+            _remainingStepSeconds--;
+
+            if (_remainingStepSeconds == 0)
+            {
+                _currentStepIndex++;
+                if (_currentStepIndex >= _processSteps.Count)
+                {
+                    _currentStepIndex = 0;
+                    _cycleRunning = false;
+                    _hoistStatus.Status = "Idle";
+                    _hoistStatusService.Save(currentStep.TankId, "Idle");
+                    UpdateModeButtons();
+                }
+                else
+                {
+                    AdvanceToCurrentStepTarget();
+                }
+            }
+        }
+
+        private void SetOnlyCurrentTankRunning(List<TankModel> tanks, int tankId)
+        {
+            foreach (var tank in tanks)
+            {
+                if (tank.Id == tankId)
+                {
+                    tank.Status = Constants.StatusRunning;
+                }
+                else if (string.Equals(tank.Status, Constants.StatusRunning, StringComparison.OrdinalIgnoreCase))
+                {
+                    tank.Status = Constants.StatusNormal;
+                }
+            }
+        }
+
+        private void AdvanceToCurrentStepTarget()
+        {
+            if (_processSteps.Count == 0)
+            {
+                return;
+            }
+
+            var step = _processSteps[_currentStepIndex];
+            _hoistTargetIndex = GetTankIndex(step.TankId);
+            _hoistStatus.Status = "Moving";
+            _hoistStatusService.Save(step.TankId, "Moving");
+            _hoistStatus = _hoistStatusService.GetCurrent();
+        }
+
+        private int? GetCurrentStepTankId()
+        {
+            if (_processSteps.Count == 0)
+            {
+                return null;
+            }
+
+            return _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].TankId;
+        }
+
+        private string GetCurrentStepName()
+        {
+            if (_processSteps.Count == 0)
+            {
+                return "No Process";
+            }
+
+            return _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].StepName;
+        }
+
+        private string GetStepHoistState(ProcessStepModel step)
+        {
+            if (step == null || step.StepNo == 1)
+            {
+                return "Loading";
+            }
+
+            if (step.StepNo >= _processSteps.Count)
+            {
+                return "Unloading";
+            }
+
+            return "Processing";
+        }
+
+        private double GetTankIndex(int? tankId)
+        {
+            if (!tankId.HasValue)
+            {
+                return 0;
+            }
+
+            var tanks = _tankService.GetTanks();
+            for (var i = 0; i < tanks.Count; i++)
+            {
+                if (tanks[i].Id == tankId.Value)
+                {
+                    return i;
+                }
+            }
+
+            return 0;
+        }
+
+        private void RaiseProcessAlarmIfNeeded(TankModel tank)
+        {
+            if (tank.TemperatureCelsius > 70)
+            {
+                _alarmService.RaiseAlarm(tank.Name, "Warning", "High temperature detected.");
+            }
+
+            if (tank.CapacityLiters > 0 && tank.CurrentLevelLiters < tank.CapacityLiters * 0.35)
+            {
+                _alarmService.RaiseAlarm(tank.Name, "Warning", "Low chemical level detected.");
+            }
+
+            if (_cycleRunning && _remainingStepSeconds > 0)
+            {
+                var currentStep = _processSteps.Count == 0 ? null : _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)];
+                if (currentStep != null && tank.Id == currentStep.TankId && _remainingStepSeconds > currentStep.DurationSeconds + 5)
+                {
+                    _alarmService.RaiseAlarm(tank.Name, "Warning", "Process timeout detected.");
+                }
+            }
+        }
+
+        private void UpdateModeButtons()
+        {
+            btnAutoMode.Checked = _autoMode;
+            btnManualMode.Checked = !_autoMode;
+            btnEmergencyStop.Checked = _emergencyStop;
+            btnStartCycle.Enabled = !_emergencyStop;
+            btnStopCycle.Enabled = _cycleRunning;
         }
 
         private void UpdateHeaderIndicators(PlantStatusModel status)

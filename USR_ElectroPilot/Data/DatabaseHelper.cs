@@ -29,6 +29,8 @@ namespace USR_ElectroPilot.Data
                     SeedDefaultUsers(connection, transaction);
                     SeedSystemSettings(connection, transaction);
                     SeedDefaultTanks(connection, transaction);
+                    SeedDefaultProcessSteps(connection, transaction);
+                    SeedDefaultHoistStatus(connection, transaction);
 
                     transaction.Commit();
                 }
@@ -100,6 +102,22 @@ namespace USR_ElectroPilot.Data
                     Status TEXT NOT NULL,
                     RecordedAt TEXT NOT NULL DEFAULT (datetime('now')),
                     FOREIGN KEY (TankId) REFERENCES Tanks(Id)
+                );",
+                @"CREATE TABLE IF NOT EXISTS ProcessSteps (
+                    StepId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    StepNo INTEGER NOT NULL,
+                    TankId INTEGER NOT NULL,
+                    StepName TEXT NOT NULL,
+                    DurationSeconds INTEGER NOT NULL,
+                    IsActive INTEGER NOT NULL DEFAULT 1,
+                    FOREIGN KEY (TankId) REFERENCES Tanks(Id)
+                );",
+                @"CREATE TABLE IF NOT EXISTS HoistStatus (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CurrentTankId INTEGER NULL,
+                    Status TEXT NOT NULL,
+                    LastUpdated TEXT NOT NULL,
+                    FOREIGN KEY (CurrentTankId) REFERENCES Tanks(Id)
                 );",
                 @"CREATE TABLE IF NOT EXISTS Wagons (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -236,7 +254,20 @@ namespace USR_ElectroPilot.Data
                 }
             }
 
-            for (var tankNumber = 1; tankNumber <= 10; tankNumber++)
+            var tankNames = new[]
+            {
+                "Loading Station",
+                "Cleaning Tank",
+                "Rinse Tank 1",
+                "Acid Tank",
+                "Rinse Tank 2",
+                "Electroplating Tank",
+                "Rinse Tank 3",
+                "Drying Tank",
+                "Unloading Station"
+            };
+
+            for (var tankNumber = 1; tankNumber <= tankNames.Length; tankNumber++)
             {
                 using (var command = new SQLiteCommand(
                     @"INSERT INTO Tanks (TankNumber, Name, ChemicalName, CapacityLiters, CurrentLevelLiters, TemperatureCelsius, Voltage, CurrentAmps, Status, IsActive)
@@ -246,16 +277,81 @@ namespace USR_ElectroPilot.Data
                 {
                     command.Parameters.AddWithValue("@TankNumber", tankNumber);
                     command.Parameters.AddWithValue("@Name", "T" + tankNumber);
-                    command.Parameters.AddWithValue("@ChemicalName", "Process Chemical");
+                    command.Parameters.AddWithValue("@ChemicalName", tankNames[tankNumber - 1]);
                     command.Parameters.AddWithValue("@CapacityLiters", 1000);
                     command.Parameters.AddWithValue("@CurrentLevelLiters", 750);
-                    command.Parameters.AddWithValue("@TemperatureCelsius", 35);
-                    command.Parameters.AddWithValue("@Voltage", 12);
-                    command.Parameters.AddWithValue("@CurrentAmps", 100);
+                    command.Parameters.AddWithValue("@TemperatureCelsius", 32 + tankNumber);
+                    command.Parameters.AddWithValue("@Voltage", tankNumber == 6 ? 12 : 0);
+                    command.Parameters.AddWithValue("@CurrentAmps", tankNumber == 6 ? 140 : 0);
                     command.Parameters.AddWithValue("@Status", "Normal");
                     command.Parameters.AddWithValue("@IsActive", 1);
                     command.ExecuteNonQuery();
                 }
+            }
+        }
+
+        private static void SeedDefaultProcessSteps(SQLiteConnection connection, SQLiteTransaction transaction)
+        {
+            using (var countCommand = new SQLiteCommand("SELECT COUNT(1) FROM ProcessSteps;", connection, transaction))
+            {
+                if (Convert.ToInt32(countCommand.ExecuteScalar()) > 0)
+                {
+                    return;
+                }
+            }
+
+            var steps = new[]
+            {
+                new { StepNo = 1, TankNumber = 1, StepName = "Loading Station", DurationSeconds = 8 },
+                new { StepNo = 2, TankNumber = 2, StepName = "Cleaning Tank", DurationSeconds = 18 },
+                new { StepNo = 3, TankNumber = 3, StepName = "Rinse Tank 1", DurationSeconds = 10 },
+                new { StepNo = 4, TankNumber = 4, StepName = "Acid Tank", DurationSeconds = 14 },
+                new { StepNo = 5, TankNumber = 5, StepName = "Rinse Tank 2", DurationSeconds = 10 },
+                new { StepNo = 6, TankNumber = 6, StepName = "Electroplating Tank", DurationSeconds = 24 },
+                new { StepNo = 7, TankNumber = 7, StepName = "Rinse Tank 3", DurationSeconds = 10 },
+                new { StepNo = 8, TankNumber = 8, StepName = "Drying Tank", DurationSeconds = 16 },
+                new { StepNo = 9, TankNumber = 9, StepName = "Unloading Station", DurationSeconds = 8 }
+            };
+
+            foreach (var step in steps)
+            {
+                int tankId;
+                using (var tankCommand = new SQLiteCommand("SELECT Id FROM Tanks WHERE TankNumber = @TankNumber;", connection, transaction))
+                {
+                    tankCommand.Parameters.AddWithValue("@TankNumber", step.TankNumber);
+                    var value = tankCommand.ExecuteScalar();
+                    if (value == null || value == DBNull.Value)
+                    {
+                        continue;
+                    }
+
+                    tankId = Convert.ToInt32(value);
+                }
+
+                using (var command = new SQLiteCommand(
+                    @"INSERT INTO ProcessSteps (StepNo, TankId, StepName, DurationSeconds, IsActive)
+                      VALUES (@StepNo, @TankId, @StepName, @DurationSeconds, 1);",
+                    connection,
+                    transaction))
+                {
+                    command.Parameters.AddWithValue("@StepNo", step.StepNo);
+                    command.Parameters.AddWithValue("@TankId", tankId);
+                    command.Parameters.AddWithValue("@StepName", step.StepName);
+                    command.Parameters.AddWithValue("@DurationSeconds", step.DurationSeconds);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private static void SeedDefaultHoistStatus(SQLiteConnection connection, SQLiteTransaction transaction)
+        {
+            using (var command = new SQLiteCommand(
+                @"INSERT OR IGNORE INTO HoistStatus (Id, CurrentTankId, Status, LastUpdated)
+                  VALUES (1, (SELECT Id FROM Tanks ORDER BY TankNumber LIMIT 1), 'Idle', datetime('now'));",
+                connection,
+                transaction))
+            {
+                command.ExecuteNonQuery();
             }
         }
 

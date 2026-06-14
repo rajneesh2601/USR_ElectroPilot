@@ -35,6 +35,24 @@ namespace USR_ElectroPilot.Data
             }
         }
 
+        public bool HasActive(string source, string message)
+        {
+            using (var connection = SqliteConnectionFactory.CreateConnection())
+            using (var command = new SQLiteCommand(
+                @"SELECT COUNT(1)
+                  FROM Alarms
+                  WHERE State = 'Active'
+                    AND Source = @Source
+                    AND Message = @Message;",
+                connection))
+            {
+                command.Parameters.AddWithValue("@Source", source);
+                command.Parameters.AddWithValue("@Message", message);
+                connection.Open();
+                return Convert.ToInt32(command.ExecuteScalar()) > 0;
+            }
+        }
+
         public void Acknowledge(int id, string username)
         {
             using (var connection = SqliteConnectionFactory.CreateConnection())

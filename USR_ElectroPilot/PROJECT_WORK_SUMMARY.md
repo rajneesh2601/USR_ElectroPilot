@@ -31,6 +31,10 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Added visible default-user guidance on `LoginForm` and corrected the default `viewer` role.
 - Added a tank historian repository/service and changed tank trends to use recorded time-series data.
 - Reworked the tank tab into a reference-style electroplating SCADA mimic with two process rails, compact tank cells, live values, wagon/hoist indicators, alarm legend, and right-click tank actions.
+- Added `ProcessSteps` and `HoistStatus` SQLite tables with ADO.NET repositories/services and default nine-stage electroplating sequence.
+- Added Auto/Manual, Start Cycle, Stop Cycle, Emergency Stop, and Reset controls to the main toolbar.
+- Added a timer-driven hoist/carrier simulation with persisted hoist state, process countdown, current stage display, and right-side dashboard cards.
+- Changed the SCADA mimic palette to a distinct steel/blue industrial style instead of matching the reference video colors.
 
 ## Latest verified commits
 
@@ -47,6 +51,7 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - `fe6f04a fix: return to login after user logout`
 - This follow-up change adds historical tank trend recording from `newprpmpt.txt` guidance.
 - This follow-up change adds a SCADA mimic tank overview based on the provided electroplating HMI reference.
+- This follow-up change completes the requested process-step and hoist-status SCADA workflow using the existing project folder style.
 
 ## Release verification
 
@@ -57,4 +62,5 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Multi-login smoke test covers admin login, logout, viewer login, viewer role verification, and login form reset.
 - Historian smoke test covers tank snapshot recording, history retrieval, and `TrendForm` load using time-series data.
 - SCADA mimic verification covers debug/release build compilation and existing tank action wiring through the overview context menu.
+- Process SCADA smoke test covers `ProcessSteps`, `HoistStatus`, and off-screen render of the overview dashboard.
 - `v1.0.0` was published before the `ch.txt` follow-up additions.

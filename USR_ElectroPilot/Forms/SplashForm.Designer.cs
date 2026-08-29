@@ -68,7 +68,7 @@ namespace USR_ElectroPilot.Forms
             // 
             // progressTimer
             // 
-            this.progressTimer.Interval = 35;
+            this.progressTimer.Interval = 15;
             this.progressTimer.Tick += new System.EventHandler(this.ProgressTimer_Tick);
             // 
             // SplashForm

@@ -50,5 +50,9 @@ Desktop.ini
 publish/
 PublishOutput/
 
+# Local verification tool binaries
+docs/3d-dashboard/tools/*.exe
+nuget.exe
+
 # Crash dumps
 *.dmp

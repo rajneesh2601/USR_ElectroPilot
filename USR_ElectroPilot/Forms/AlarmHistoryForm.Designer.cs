@@ -62,6 +62,7 @@ namespace USR_ElectroPilot.Forms
             this.filterPanel.Controls.Add(this.lblState);
             this.filterPanel.Controls.Add(this.lblSeverity);
             this.filterPanel.Controls.Add(this.lblSource);
+            this.filterPanel.AutoScroll = true;
             this.filterPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.filterPanel.Location = new System.Drawing.Point(0, 0);
             this.filterPanel.Name = "filterPanel";
@@ -152,7 +153,7 @@ namespace USR_ElectroPilot.Forms
             this.ClientSize = new System.Drawing.Size(1044, 561);
             this.Controls.Add(this.gridAlarms);
             this.Controls.Add(this.filterPanel);
-            this.MinimumSize = new System.Drawing.Size(900, 500);
+            this.MinimumSize = new System.Drawing.Size(1060, 500);
             this.Name = "AlarmHistoryForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Alarm History";

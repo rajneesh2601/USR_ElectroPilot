@@ -35,13 +35,21 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Added Auto/Manual, Start Cycle, Stop Cycle, Emergency Stop, and Reset controls to the main toolbar.
 - Added a timer-driven hoist/carrier simulation with persisted hoist state, process countdown, current stage display, and right-side dashboard cards.
 - Changed the SCADA mimic palette to a distinct steel/blue industrial style instead of matching the reference video colors.
-- Added an admin-only `Add Row` control that persists the number of SCADA tank lines in `SystemSettings`.
+- Removed the visible multiple-row/multiple-line creation path; tank count now increases through `Add Tank` on the main production line.
 - Improved SCADA overview spacing and status-card text fitting so longer process names do not clip.
 - Fixed hoist movement arrival logic so transitions such as T1 to T2 clamp to the target and continue into processing.
 - Upgraded the SCADA overview with an internal plant header, framed process area, darker operator panel, row labels, and clearer tank status/value styling.
 - Added first-class `Hoists` and `Jobs` tables plus `HoistService`, `ProcessRecipeService`, and `JobService` for production sequencing.
-- Added `HoistControl` and upgraded the overview to show multiple hoists, hoist queue, process recipe, active jobs, and tank occupancy.
+- Added `HoistControl` and upgraded the overview to show hoist state, process recipe, active jobs, and tank occupancy.
 - Process sequencing now moves jobs through Moving, Lowering, Processing, Lifting, Complete states against the configured recipe.
+- Latest direction: keep one main line, normalize new/edit tanks to `LineId = 1`, and support only one main hoist, `H1`.
+- Added a future-use TCP/IP communication module with `IpConnectionClient`, `IpDataMessageModel`, and `IpConnectionForm` for connecting by IP/port, viewing received data, and sending raw text data.
+- Fixed startup migration failures caused by duplicate `Tanks.TankNumber` and `Lines.LineName` values from earlier multi-line data by normalizing tanks and lines safely before assigning final main-line values.
+- Upgraded `ScadaOverviewControl` toward the attached 3D SCADA reference using live WinForms/GDI+ rendering: dark dashboard header, left navigation, right KPI cards, bottom alarm table, isometric process tanks, blue rails/walkway, and a heavy yellow portal wagon that moves horizontally above the tanks from the existing hoist state.
+- Hid the older top status-card strip on `MainForm` because the upgraded overview now contains the dashboard KPI cards in the right-side panel.
+- Added a WPF `ElementHost` dashboard path inside WinForms using HelixToolkit.Wpf: `Plant3DHostControl` hosts `Plant3DView`, and `MainForm` now renders the main SCADA overview through an actual Helix 3D scene with tanks, rails, walkway, and portal hoists.
+- Hid the legacy top menu/tab navigation and moved operator actions to live dashboard sidebar/bottom buttons.
+- Changed database migration, hoist service, status summary, and dashboard rendering to keep/use only single hoist `H1`.
 
 ## Latest verified commits
 
@@ -70,7 +78,10 @@ The outer folder `D:\Dev\USR_ElectroPilot` is the repository and solution root. 
 - Historian smoke test covers tank snapshot recording, history retrieval, and `TrendForm` load using time-series data.
 - SCADA mimic verification covers debug/release build compilation and existing tank action wiring through the overview context menu.
 - Process SCADA smoke test covers `ProcessSteps`, `HoistStatus`, and off-screen render of the overview dashboard.
-- SCADA row smoke test covers persisted tank-row setting and off-screen rendering with multiple tank lines.
+- Earlier SCADA row smoke test is now superseded by the single-main-line direction; row creation is intentionally hidden.
 - Hoist transition smoke test covers T1 to T2 movement reaching processing instead of staying in moving state.
-- Sequencing smoke test covers starting a production job, advancing it through recipe steps, DB-backed hoist processing, and off-screen SCADA render with jobs/hoists.
+- Sequencing smoke test covers starting a production job, advancing it through recipe steps, DB-backed single-hoist processing, and off-screen SCADA render with jobs/hoist state.
+- IP connection smoke test covers loopback TCP connect, receive, send, and echo response.
+- 3D-style dashboard render check saved an off-screen preview to `bin\dashboard-3d-render-check.png`.
+- WPF/Helix integration builds in Debug and Release with 0 errors. Runtime host construction passes; full binding inside a PowerShell reflection host needs manual binding redirection, while the built EXE output includes the required dependency DLL and generated binding redirect.
 - `v1.0.0` was published before the `ch.txt` follow-up additions.

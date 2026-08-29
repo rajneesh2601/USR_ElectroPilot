@@ -26,6 +26,11 @@ namespace USR_ElectroPilot.Services
             _tankRepository.Update(tank);
         }
 
+        public void UpdateTankRuntimeState(TankModel tank)
+        {
+            _tankRepository.UpdateRuntimeState(tank);
+        }
+
         public void DeleteTank(int id)
         {
             _tankRepository.Delete(id);
@@ -33,11 +38,21 @@ namespace USR_ElectroPilot.Services
 
         public void StartTank(TankModel tank)
         {
+            if (HasAlarmState(tank))
+            {
+                return;
+            }
+
             SetStatus(tank, Constants.StatusRunning, true);
         }
 
         public void StopTank(TankModel tank)
         {
+            if (HasAlarmState(tank))
+            {
+                return;
+            }
+
             SetStatus(tank, Constants.StatusNormal, true);
         }
 
@@ -77,6 +92,17 @@ namespace USR_ElectroPilot.Services
             tank.Status = status;
             tank.IsActive = isActive;
             UpdateTank(tank);
+        }
+
+        private static bool HasAlarmState(TankModel tank)
+        {
+            if (tank == null)
+            {
+                return false;
+            }
+
+            return string.Equals(tank.Status, Constants.StatusFault, System.StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(tank.Status, Constants.StatusWarning, System.StringComparison.OrdinalIgnoreCase);
         }
     }
 }

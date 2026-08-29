@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 using USR_ElectroPilot.Controls;
+using USR_ElectroPilot.Forms.Admin;
 using USR_ElectroPilot.Helpers;
 using USR_ElectroPilot.Models;
 using USR_ElectroPilot.Services;
@@ -22,7 +24,9 @@ namespace USR_ElectroPilot.Forms
         private readonly HoistService _hoistService = new HoistService();
         private readonly JobService _jobService = new JobService();
         private readonly ScadaLayoutService _scadaLayoutService = new ScadaLayoutService();
-        private ScadaOverviewControl _scadaOverview;
+        private readonly Dictionary<string, StatusCardControl> _statusCards = new Dictionary<string, StatusCardControl>();
+        private readonly UserModel _sessionUser;
+        private Plant3DHostControl _scadaOverview;
         private TankModel _selectedTank;
         private List<ProcessStepModel> _processSteps = new List<ProcessStepModel>();
         private List<HoistModel> _hoists = new List<HoistModel>();
@@ -35,24 +39,42 @@ namespace USR_ElectroPilot.Forms
         private int _remainingStepSeconds;
         private double _hoistVisualIndex;
         private double _hoistTargetIndex;
+        private bool _hoistVisualInitialized;
         private int _scadaTankRows = 1;
         private bool _processSecondTick;
+        private int _liveRefreshTicks;
 
         public MainForm()
+            : this(AppSession.CurrentUser)
         {
+        }
+
+        public MainForm(UserModel sessionUser)
+        {
+            _sessionUser = sessionUser ?? new UserModel
+            {
+                Username = "viewer",
+                DisplayName = "Viewer",
+                Role = Constants.RoleViewer,
+                IsActive = true
+            };
             InitializeComponent();
         }
 
         private void MainForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            HideLegacyTopNavigation();
+            pnlStatus.Visible = false;
+            pnlStatus.Height = 0;
+            ConfigureMenuUsability();
             CsvExporter.AddExportButton(alarmGrid, "dashboard_alarms");
-            UiHelper.ApplyRoleRestrictions(btnAddTank, btnEditTank, btnRemoveTank);
-            Text = Constants.ApplicationName + " - " + AppSession.Username;
-            lblUser.Text = AppSession.Username + " (" + AppSession.Role + ")";
-            _scadaTankRows = _scadaLayoutService.GetTankRows();
+            Text = Constants.ApplicationName + " - " + _sessionUser.Username;
+            lblUser.Text = _sessionUser.Username + " (" + _sessionUser.Role + ")";
+            _scadaTankRows = 1;
             ConfigureAddRowAccess();
             LoadProcessState();
+            ConfigureRoleAccess();
             UpdateModeButtons();
             UpdateHeaderIndicators(null);
             RefreshDashboard();
@@ -64,14 +86,24 @@ namespace USR_ElectroPilot.Forms
             RefreshDashboard();
         }
 
+        private void BtnOpenLogin_Click(object sender, EventArgs e)
+        {
+            DashboardWindowManager.ShowLoginAndOpenDashboard(this);
+        }
+
         private void BtnLogout_Click(object sender, EventArgs e)
         {
-            new AuthService().Logout();
+            new AuthService().Logout(_sessionUser);
             Close();
         }
 
         private void BtnAddTank_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can add tanks."))
+            {
+                return;
+            }
+
             using (var form = new TankEditForm())
             {
                 if (form.ShowDialog(this) == DialogResult.OK)
@@ -84,6 +116,11 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnEditTank_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can edit tanks."))
+            {
+                return;
+            }
+
             if (_selectedTank == null)
             {
                 MessageBox.Show("Select a tank first.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -102,6 +139,11 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnRemoveTank_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can remove tanks."))
+            {
+                return;
+            }
+
             if (_selectedTank == null)
             {
                 MessageBox.Show("Select a tank first.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -118,19 +160,16 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnAddRow_Click(object sender, EventArgs e)
         {
-            if (_scadaTankRows >= 4)
-            {
-                MessageBox.Show("Maximum SCADA tank rows reached.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            _scadaTankRows = _scadaLayoutService.AddTankRow();
-            UpdateAddRowText();
-            RefreshDashboard();
+            MessageBox.Show("Multiple tank-row creation is disabled. Use Add Tank to increase the tank count on the main line.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void BtnAutoMode_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can change production mode."))
+            {
+                return;
+            }
+
             _autoMode = true;
             UpdateModeButtons();
             RefreshDashboard();
@@ -138,8 +177,14 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnManualMode_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can change production mode."))
+            {
+                return;
+            }
+
             _autoMode = false;
             _cycleRunning = false;
+            _hoistService.StopAll();
             _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
             LoadProcessState();
             UpdateModeButtons();
@@ -148,24 +193,120 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnStartCycle_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can start production."))
+            {
+                return;
+            }
+
             if (_emergencyStop)
             {
                 MessageBox.Show("Reset emergency stop before starting cycle.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
+            StartLineJob(1);
+        }
+
+        private void BtnNewJob_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can start production jobs."))
+            {
+                return;
+            }
+
+            if (_emergencyStop)
+            {
+                MessageBox.Show("Reset emergency stop before creating a job.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            StartLineJob(1);
+        }
+
+        private void BtnStartLine1Job_Click(object sender, EventArgs e)
+        {
+            StartLineJob(1);
+        }
+
+        private void BtnStopLine1Job_Click(object sender, EventArgs e)
+        {
+            StopLineJob(1);
+        }
+
+        private void StartLineJob(int lineId)
+        {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can start production jobs."))
+            {
+                return;
+            }
+
+            if (_emergencyStop)
+            {
+                MessageBox.Show("Reset emergency stop before creating a job.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!HasRecipeForLine(lineId))
+            {
+                MessageBox.Show("The main production line has no configured recipe or tanks.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!HasHoistForLine(lineId))
+            {
+                MessageBox.Show("The main production line has no assigned hoist.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             _autoMode = true;
             _cycleRunning = true;
-            _jobService.StartJob(_processSteps);
+            _jobService.StartLineJob(_processSteps, lineId);
             LoadProcessState();
             UpdateModeButtons();
             RefreshDashboard();
         }
 
+        private void StopLineJob(int lineId)
+        {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can stop production jobs."))
+            {
+                return;
+            }
+
+            _jobService.PauseLineJob(lineId);
+            _hoistService.StopLine(lineId);
+            LoadProcessState();
+            _cycleRunning = HasAnyRunningJob();
+            UpdateModeButtons();
+            RefreshDashboard();
+        }
+
+        private void StartAllLineJobs()
+        {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can start production."))
+            {
+                return;
+            }
+
+            if (_emergencyStop)
+            {
+                MessageBox.Show("Reset emergency stop before starting recipe.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            StartLineJob(1);
+        }
+
         private void BtnStopCycle_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanRunProduction(), "Only Admin, Supervisor, and Operator users can pause production."))
+            {
+                return;
+            }
+
             _cycleRunning = false;
             _hoistService.StopAll();
+            _jobService.PauseAllActiveJobs();
             LoadProcessState();
             UpdateModeButtons();
             RefreshDashboard();
@@ -173,9 +314,16 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnEmergencyStop_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can trigger emergency stop."))
+            {
+                return;
+            }
+
             _emergencyStop = true;
             _cycleRunning = false;
             _hoistService.EmergencyStop();
+            _tankService.StopAllTanks();
+            _jobService.PauseAllActiveJobs();
             _hoistStatusService.Save(GetCurrentStepTankId(), "EmergencyStop");
             _alarmService.RaiseAlarm("Hoist", "Critical", "Emergency stop activated.");
             LoadProcessState();
@@ -185,33 +333,113 @@ namespace USR_ElectroPilot.Forms
 
         private void BtnReset_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can reset plant operation."))
+            {
+                return;
+            }
+
+            ResetAllPlantOperation();
+        }
+
+        private void ResetAllPlantOperation()
+        {
             _emergencyStop = false;
             _cycleRunning = false;
             _currentStepIndex = 0;
             _remainingStepSeconds = 0;
-            _alarmService.ResetActiveAlarms();
+            _alarmService.ResetActiveAlarms(_sessionUser.Username);
+            foreach (var tank in _tankService.GetTanks())
+            {
+                if (string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(tank.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase))
+                {
+                    _tankService.ResetTank(tank);
+                }
+            }
+
             _hoistService.StopAll();
+            _jobService.StopAllActiveJobs();
             _hoistStatusService.Save(GetCurrentStepTankId(), "Idle");
             LoadProcessState();
             UpdateModeButtons();
             RefreshDashboard();
         }
 
+        private void ResetLineOperation(int lineId)
+        {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can reset line operation."))
+            {
+                return;
+            }
+
+            _jobService.StopLineActiveJobs(lineId);
+            _hoistService.StopLine(lineId);
+            foreach (var tank in _tankService.GetTanks().Where(tank => tank.LineId == lineId))
+            {
+                if (string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(tank.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(tank.Status, Constants.StatusRunning, StringComparison.OrdinalIgnoreCase))
+                {
+                    _tankService.ResetTank(tank);
+                }
+            }
+
+            LoadProcessState();
+            _cycleRunning = HasAnyRunningJob();
+            UpdateModeButtons();
+            RefreshDashboard();
+        }
+
         private void BtnStartAll_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can start the plant."))
+            {
+                return;
+            }
+
+            if (_emergencyStop)
+            {
+                MessageBox.Show("Reset emergency stop before starting the plant.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            foreach (var tank in _tankService.GetTanks())
+            {
+                if (string.Equals(tank.Status, Constants.StatusFault, StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show("Plant cannot start while tank faults are active. Reset faults first.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
             _tankService.StartAllTanks();
             RefreshDashboard();
         }
 
         private void BtnStopAll_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can stop the plant."))
+            {
+                return;
+            }
+
+            _cycleRunning = false;
+            _hoistService.StopAll();
+            _jobService.StopAllActiveJobs();
             _tankService.StopAllTanks();
+            LoadProcessState();
+            UpdateModeButtons();
             RefreshDashboard();
         }
 
         private void BtnResetAlarms_Click(object sender, EventArgs e)
         {
-            _alarmService.ResetActiveAlarms();
+            if (!RequirePermission(CanResetAlarms(), "Only Admin and Supervisor users can reset alarms."))
+            {
+                return;
+            }
+
+            _alarmService.ResetActiveAlarms(_sessionUser.Username);
 
             foreach (var tank in _tankService.GetTanks())
             {
@@ -223,6 +451,227 @@ namespace USR_ElectroPilot.Forms
             }
 
             RefreshDashboard();
+        }
+
+        private void BtnConfiguration_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can open plant configuration."))
+            {
+                return;
+            }
+
+            MessageBox.Show("Line creation is disabled. Use Add Tank, Edit Tank, Recipe Editor, and hoist configuration for the main line.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void BtnAddLine_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can configure the plant."))
+            {
+                return;
+            }
+
+            MessageBox.Show("Multiple production line creation has been removed. Increase tank count with Add Tank and run the plant with single hoist H1.", Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void BtnRecipeEditor_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can edit recipes."))
+            {
+                return;
+            }
+
+            using (var form = new RecipeForm())
+            {
+                form.ShowDialog(this);
+            }
+        }
+
+        private void BtnUserManagement_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanAdmin(), "Only Admin users can manage users."))
+            {
+                return;
+            }
+
+            using (var form = new AdminPanelForm())
+            {
+                form.ShowDialog(this);
+            }
+        }
+
+        private void BtnAlarmHistory_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanViewMaintenance(), "This role cannot open alarm history."))
+            {
+                return;
+            }
+
+            using (var form = new AlarmHistoryForm())
+            {
+                form.ShowDialog(this);
+            }
+        }
+
+        private void BtnReports_Click(object sender, EventArgs e)
+        {
+            if (!RequirePermission(CanViewMaintenance(), "This role cannot open reports."))
+            {
+                return;
+            }
+
+            using (var form = new LoadHistoryForm())
+            {
+                form.ShowDialog(this);
+            }
+        }
+
+        private void BtnIpConnection_Click(object sender, EventArgs e)
+        {
+            using (var form = new IpConnectionForm())
+            {
+                form.ShowDialog(this);
+            }
+        }
+
+        private void ConfigureMenuUsability()
+        {
+            btnNewJob.Text = "New Job";
+            btnStartCycle.Text = "Start Job";
+            btnPauseRecipe.Text = "Pause All Jobs";
+            btnReset.Text = "Reset All";
+            btnAutoMode.ToolTipText = "Enable automatic recipe sequencing.";
+            btnManualMode.ToolTipText = "Stop automatic sequencing and leave hoists idle.";
+            btnNewJob.ToolTipText = "Create an automatic production job on the main line.";
+            btnStartLine1Job.ToolTipText = "Hidden compatibility command.";
+            btnStopLine1Job.ToolTipText = "Hidden compatibility command.";
+            btnStartCycle.ToolTipText = "Start an automatic production job on the main line.";
+            btnPauseRecipe.ToolTipText = "Pause running production jobs and release hoists.";
+            btnStartAll.ToolTipText = "Start all healthy tanks. Active tank faults block plant start.";
+            btnStopAll.ToolTipText = "Stop tanks and hoists without clearing fault or warning states.";
+            btnEmergencyStop.ToolTipText = "Stop tanks, set every hoist to emergency stop, and raise a critical alarm.";
+            btnReset.ToolTipText = "Reset the plant, clear emergency stop, reset active alarms, and idle hoists.";
+            btnOpenLogin.ToolTipText = "Open a separate dashboard for another user without closing this one.";
+            btnConfiguration.ToolTipText = "Line creation is disabled.";
+            btnAddLine.ToolTipText = "Multiple line creation is disabled.";
+            btnRecipeEditor.ToolTipText = "Open recipe editor.";
+            btnUserManagement.ToolTipText = "Open user and administration tools.";
+            btnAlarmHistory.ToolTipText = "Open alarm history.";
+            btnReports.ToolTipText = "Open reports and load history.";
+            btnResetAlarms.ToolTipText = "Reset active alarms and warning/fault tank states.";
+            btnIpConnection.ToolTipText = "Open raw TCP/IP connection test screen for future PLC/device communication.";
+        }
+
+        private void ConfigureRoleAccess()
+        {
+            var canOperate = CanOperatePlant();
+            var canProduce = CanRunProduction();
+            var canEngineer = CanEngineer();
+            var canAdmin = CanAdmin();
+            var canMaintenance = CanViewMaintenance();
+            var canResetAlarms = CanResetAlarms();
+
+            SetMenuVisible(mnuPlantOperations, canOperate);
+            SetMenuVisible(mnuProduction, canProduce);
+            SetMenuVisible(mnuEngineering, canEngineer || canAdmin);
+            SetMenuVisible(mnuMaintenance, canMaintenance || canResetAlarms);
+
+            SetItemVisible(btnStartAll, canOperate);
+            SetItemVisible(btnStopAll, canOperate);
+            SetItemVisible(btnEmergencyStop, canOperate);
+            SetItemVisible(btnReset, canOperate);
+            SetItemVisible(btnAutoMode, canProduce);
+            SetItemVisible(btnManualMode, canProduce);
+            SetItemVisible(btnNewJob, canProduce);
+            SetItemVisible(btnStartLine1Job, false);
+            SetItemVisible(btnStopLine1Job, false);
+            SetItemVisible(btnStartCycle, canProduce);
+            SetItemVisible(btnPauseRecipe, canProduce);
+
+            SetItemVisible(btnConfiguration, false);
+            SetItemVisible(btnAddLine, false);
+            SetItemVisible(btnRecipeEditor, canEngineer);
+            SetItemVisible(btnAddTank, canEngineer);
+            SetItemVisible(btnEditTank, canEngineer);
+            SetItemVisible(btnRemoveTank, canEngineer);
+            SetItemVisible(btnUserManagement, canAdmin);
+
+            SetItemVisible(btnAlarmHistory, canMaintenance);
+            SetItemVisible(btnReports, canMaintenance);
+            SetItemVisible(btnResetAlarms, canResetAlarms);
+            SetItemVisible(btnIpConnection, true);
+        }
+
+        private static void SetMenuVisible(ToolStripItem item, bool visible)
+        {
+            item.Available = visible;
+            item.Visible = visible;
+            item.Enabled = visible;
+        }
+
+        private static void SetItemVisible(ToolStripItem item, bool visible)
+        {
+            item.Available = visible;
+            item.Visible = visible;
+            item.Enabled = visible;
+        }
+
+        private bool CanAdmin()
+        {
+            return HasSessionRole(Constants.RoleAdmin);
+        }
+
+        private bool CanEngineer()
+        {
+            return HasSessionRole(Constants.RoleAdmin, Constants.RoleSupervisor);
+        }
+
+        private bool CanOperatePlant()
+        {
+            return HasSessionRole(Constants.RoleAdmin, Constants.RoleSupervisor, Constants.RoleOperator);
+        }
+
+        private bool CanRunProduction()
+        {
+            return HasSessionRole(Constants.RoleAdmin, Constants.RoleSupervisor, Constants.RoleOperator);
+        }
+
+        private bool CanResetAlarms()
+        {
+            return HasSessionRole(Constants.RoleAdmin, Constants.RoleSupervisor);
+        }
+
+        private bool CanViewMaintenance()
+        {
+            return HasSessionRole(Constants.RoleAdmin, Constants.RoleSupervisor, Constants.RoleOperator, Constants.RoleViewer);
+        }
+
+        private bool HasSessionRole(params string[] roles)
+        {
+            if (_sessionUser == null || roles == null)
+            {
+                return false;
+            }
+
+            foreach (var role in roles)
+            {
+                if (string.Equals(_sessionUser.Role, role, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool RequirePermission(bool allowed, string message)
+        {
+            if (allowed)
+            {
+                return true;
+            }
+
+            MessageBox.Show(message, Constants.ApplicationName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
         }
 
         private void RefreshDashboard()
@@ -270,7 +719,7 @@ namespace USR_ElectroPilot.Forms
             foreach (var tank in tanks)
             {
                 ApplyTankOccupancyStatus(tank);
-                _tankService.UpdateTank(tank);
+                _tankService.UpdateTankRuntimeState(tank);
                 _tankHistoryService.RecordSnapshot(tank);
                 RaiseStateAlarmIfNeeded(tank, previousStatuses.ContainsKey(tank.Id) ? previousStatuses[tank.Id] : string.Empty);
                 RaiseProcessAlarmIfNeeded(tank);
@@ -281,58 +730,74 @@ namespace USR_ElectroPilot.Forms
 
         private void RefreshLiveDashboard()
         {
+            _liveRefreshTicks++;
             var status = _dashboardService.GetPlantStatus();
             UpdateHeaderIndicators(status);
             LoadStatusCards(status);
             LoadTanks();
             pnlRectifiers.Invalidate(true);
-            LoadAlarms();
+            if (_liveRefreshTicks % 4 == 0)
+            {
+                LoadAlarms();
+            }
         }
 
         private void LoadStatusCards(PlantStatusModel status)
         {
-            pnlStatus.Controls.Clear();
-            pnlStatus.Controls.Add(CreateStatusCard("Total Tanks", status.TotalTankCount.ToString(), "Configured"));
-            pnlStatus.Controls.Add(CreateStatusCard("Running Tanks", status.RunningTankCount.ToString(), "Running"));
-            pnlStatus.Controls.Add(CreateStatusCard("Fault Tanks", status.FaultTankCount.ToString(), "Fault"));
-            pnlStatus.Controls.Add(CreateStatusCard("Process Step", status.CurrentProcessStep, _remainingStepSeconds > 0 ? _remainingStepSeconds + " sec left" : "Ready"));
-            pnlStatus.Controls.Add(CreateStatusCard("Hoist Position", status.HoistPosition, status.HoistState));
-            pnlStatus.Controls.Add(CreateStatusCard("Active Alarms", status.ActiveAlarmCount.ToString(), "Active"));
+            UpsertStatusCard("Tanks", status.TotalTankCount.ToString(), "Configured");
+            UpsertStatusCard("Running", status.RunningTankCount.ToString(), "Active");
+            UpsertStatusCard("Alarms", status.ActiveAlarmCount.ToString(), status.FaultTankCount + " tank faults");
+            UpsertStatusCard("Jobs", _jobs.Count.ToString(), status.CurrentProcessStep);
+            UpsertStatusCard("Hoist", status.HoistPosition, status.HoistState);
         }
 
-        private StatusCardControl CreateStatusCard(string title, string value, string caption)
+        private void UpsertStatusCard(string title, string value, string caption)
         {
-            return new StatusCardControl
+            StatusCardControl card;
+            if (!_statusCards.TryGetValue(title, out card))
             {
-                Title = title,
-                Value = value,
-                Caption = caption,
-                Margin = new Padding(8)
-            };
+                card = new StatusCardControl { Title = title, Margin = new Padding(8) };
+                _statusCards[title] = card;
+                pnlStatus.Controls.Add(card);
+            }
+
+            card.Value = value;
+            card.Caption = caption;
         }
 
         private void LoadTanks()
         {
+            var tanks = _tankService.GetTanks();
             if (_scadaOverview == null)
             {
-                _scadaOverview = new ScadaOverviewControl { Dock = DockStyle.Fill };
+                pnlTanks.AutoScroll = true;
+                _scadaOverview = new Plant3DHostControl(true)
+                {
+                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                    Location = new System.Drawing.Point(0, 0)
+                };
                 _scadaOverview.TankSelected += ScadaOverview_TankSelected;
                 _scadaOverview.StartClicked += TankControl_StartClicked;
                 _scadaOverview.StopClicked += TankControl_StopClicked;
                 _scadaOverview.FaultClicked += TankControl_FaultClicked;
                 _scadaOverview.ResetClicked += TankControl_ResetClicked;
                 _scadaOverview.RemoveClicked += TankControl_RemoveClicked;
+                _scadaOverview.DashboardCommandRequested += ScadaOverview_DashboardCommandRequested;
+                pnlTanks.Resize += PnlTanks_Resize;
                 pnlTanks.Controls.Add(_scadaOverview);
             }
 
+            _scadaOverview.CanOperateTanks = CanOperatePlant();
+            _scadaOverview.CanEngineerTanks = CanEngineer();
+            ResizeScadaOverview(tanks);
             _scadaOverview.BindData(
-                _tankService.GetTanks(),
+                tanks,
                 _wagonService.GetWagons(),
                 _processSteps,
                 _hoists,
                 _jobs,
                 _hoistStatus,
-                _hoistVisualIndex,
+                _hoistTargetIndex,
                 GetCurrentStepName(),
                 _remainingStepSeconds,
                 _autoMode,
@@ -344,15 +809,126 @@ namespace USR_ElectroPilot.Forms
             }
         }
 
+        private void PnlTanks_Resize(object sender, EventArgs e)
+        {
+            if (_scadaOverview != null)
+            {
+                ResizeScadaOverview(_tankService.GetTanks());
+            }
+        }
+
+        private void ResizeScadaOverview(IList<TankModel> tanks)
+        {
+            if (_scadaOverview == null)
+            {
+                return;
+            }
+
+            var requiredHeight = 250 + 176;
+            requiredHeight = Math.Max(pnlTanks.ClientSize.Height - 4, requiredHeight);
+            _scadaOverview.Width = Math.Max(900, pnlTanks.ClientSize.Width - (pnlTanks.VerticalScroll.Visible ? SystemInformation.VerticalScrollBarWidth : 0) - 4);
+            _scadaOverview.Height = requiredHeight;
+        }
+
         private void ScadaOverview_TankSelected(object sender, TankControlEventArgs e)
         {
             _selectedTank = FindTank(e.TankId);
         }
 
+        private void ScadaOverview_DashboardCommandRequested(object sender, string command)
+        {
+            if (string.Equals(command, "Overview", StringComparison.OrdinalIgnoreCase))
+            {
+                tabs.SelectedTab = tabTanks;
+            }
+            else if (string.Equals(command, "Refresh", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnRefresh_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Start Plant", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnStartAll_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Stop Plant", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(command, "Stop", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnStopAll_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Start Job", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnStartCycle_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Pause Job", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnStopCycle_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Auto", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnAutoMode_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Manual", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnManualMode_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Emergency Stop", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnEmergencyStop_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Reset", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnReset_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Add Tank", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnAddTank_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Edit Tank", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnEditTank_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Remove Tank", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnRemoveTank_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Recipe", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnRecipeEditor_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Alarms", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnAlarmHistory_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Reset Alarms", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnResetAlarms_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Reports", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnReports_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Users", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnUserManagement_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "IP Connect", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(command, "IP Connection", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnIpConnection_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Login", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnOpenLogin_Click(sender, EventArgs.Empty);
+            }
+            else if (string.Equals(command, "Logout", StringComparison.OrdinalIgnoreCase))
+            {
+                BtnLogout_Click(sender, EventArgs.Empty);
+            }
+        }
+
         private void LoadWagons()
         {
             pnlWagons.Controls.Clear();
-            foreach (var hoist in _hoistService.GetHoists())
+            foreach (var hoist in GetSingleMainHoistList(_hoistService.GetHoists()))
             {
                 pnlWagons.Controls.Add(new HoistControl
                 {
@@ -411,6 +987,11 @@ namespace USR_ElectroPilot.Forms
 
         private void TankControl_StartClicked(object sender, TankControlEventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can start tanks."))
+            {
+                return;
+            }
+
             var tank = FindTank(e.TankId);
             _tankService.StartTank(tank);
             RefreshDashboard();
@@ -418,6 +999,11 @@ namespace USR_ElectroPilot.Forms
 
         private void TankControl_StopClicked(object sender, TankControlEventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can stop tanks."))
+            {
+                return;
+            }
+
             var tank = FindTank(e.TankId);
             _tankService.StopTank(tank);
             RefreshDashboard();
@@ -425,22 +1011,37 @@ namespace USR_ElectroPilot.Forms
 
         private void TankControl_FaultClicked(object sender, TankControlEventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can set tank faults."))
+            {
+                return;
+            }
+
             var tank = FindTank(e.TankId);
             _tankService.MarkTankFault(tank);
-            _alarmService.RaiseAlarm(tank.Name, "Critical", "Manual fault set by " + AppSession.Username);
+            _alarmService.RaiseAlarm(tank.Name, "Critical", "Manual fault set by " + _sessionUser.Username);
             RefreshDashboard();
         }
 
         private void TankControl_ResetClicked(object sender, TankControlEventArgs e)
         {
+            if (!RequirePermission(CanOperatePlant(), "Only Admin, Supervisor, and Operator users can reset tanks."))
+            {
+                return;
+            }
+
             var tank = FindTank(e.TankId);
             _tankService.ResetTank(tank);
-            _alarmService.ResetActiveAlarms();
+            _alarmService.ResetActiveAlarms(_sessionUser.Username);
             RefreshDashboard();
         }
 
         private void TankControl_RemoveClicked(object sender, TankControlEventArgs e)
         {
+            if (!RequirePermission(CanEngineer(), "Only Admin and Supervisor users can remove tanks."))
+            {
+                return;
+            }
+
             var tank = FindTank(e.TankId);
             if (MessageBox.Show("Remove " + tank.Name + "?", Constants.ApplicationName, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
@@ -483,21 +1084,27 @@ namespace USR_ElectroPilot.Forms
         private void LoadProcessState()
         {
             _processSteps = _processRecipeService.GetRecipeSteps();
-            _hoists = _hoistService.GetHoists();
+            _hoists = GetSingleMainHoistList(_hoistService.GetHoists());
             _jobs = _jobService.GetActiveJobs();
             _hoistStatus = _hoistStatusService.GetCurrent();
             var primaryHoist = _hoists.Count == 0 ? null : _hoists[0];
             if (primaryHoist != null)
             {
-                _hoistVisualIndex = primaryHoist.PositionIndex;
-                _hoistTargetIndex = Math.Max(0, primaryHoist.TargetTankNo - 1);
-                _hoistStatus.CurrentTankId = GetTankIdByNumber(primaryHoist.CurrentTankNo);
+                if (!_hoistVisualInitialized)
+                {
+                    _hoistVisualIndex = primaryHoist.PositionIndex;
+                    _hoistVisualInitialized = true;
+                }
+
+                _hoistTargetIndex = primaryHoist.PositionIndex;
+                _hoistStatus.CurrentTankId = GetTankIdByNumber(primaryHoist.LineId, primaryHoist.CurrentTankNo);
                 _hoistStatus.Status = primaryHoist.Status;
             }
             else
             {
                 _hoistVisualIndex = GetTankIndex(_hoistStatus.CurrentTankId);
                 _hoistTargetIndex = _hoistVisualIndex;
+                _hoistVisualInitialized = false;
             }
 
             var activeJob = _jobs.Count == 0 ? null : _jobs[0];
@@ -521,16 +1128,17 @@ namespace USR_ElectroPilot.Forms
 
         private void ApplyRunningTankFromJobs(List<TankModel> tanks)
         {
+            if (!_cycleRunning)
+            {
+                return;
+            }
+
             foreach (var tank in tanks)
             {
-                var occupied = IsTankOccupied(tank.TankNumber);
+                var occupied = IsTankOccupied(tank.LineId, tank.TankNo);
                 if (occupied)
                 {
                     tank.Status = Constants.StatusRunning;
-                }
-                else if (string.Equals(tank.Status, Constants.StatusRunning, StringComparison.OrdinalIgnoreCase))
-                {
-                    tank.Status = Constants.StatusNormal;
                 }
             }
         }
@@ -542,7 +1150,8 @@ namespace USR_ElectroPilot.Forms
                 return null;
             }
 
-            return GetTankIdByNumber(_processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)].TankNo);
+            var step = _processSteps[Math.Min(_currentStepIndex, _processSteps.Count - 1)];
+            return GetTankIdByNumber(step.LineId, step.TankNo);
         }
 
         private string GetCurrentStepName()
@@ -588,11 +1197,11 @@ namespace USR_ElectroPilot.Forms
             _hoistVisualIndex += distance > 0 ? step : -step;
         }
 
-        private int? GetTankIdByNumber(int tankNo)
+        private int? GetTankIdByNumber(int lineId, int tankNo)
         {
             foreach (var tank in _tankService.GetTanks())
             {
-                if (tank.TankNumber == tankNo)
+                if (tank.LineId == lineId && tank.TankNo == tankNo)
                 {
                     return tank.Id;
                 }
@@ -619,11 +1228,11 @@ namespace USR_ElectroPilot.Forms
             return null;
         }
 
-        private bool IsTankOccupied(int tankNo)
+        private bool IsTankOccupied(int lineId, int tankNo)
         {
             foreach (var job in _jobs)
             {
-                if (job.CurrentTank == tankNo && !string.Equals(job.Status, "Moving", StringComparison.OrdinalIgnoreCase))
+                if (job.LineId == lineId && job.CurrentTank == tankNo && IsOccupyingJobStatus(job.Status))
                 {
                     return true;
                 }
@@ -632,9 +1241,15 @@ namespace USR_ElectroPilot.Forms
             return false;
         }
 
+        private static bool IsOccupyingJobStatus(string status)
+        {
+            return string.Equals(status, "Lowering", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(status, "Processing", StringComparison.OrdinalIgnoreCase);
+        }
+
         private void ApplyTankOccupancyStatus(TankModel tank)
         {
-            if (IsTankOccupied(tank.TankNumber))
+            if (_cycleRunning && IsTankOccupied(tank.LineId, tank.TankNo))
             {
                 tank.Status = Constants.StatusRunning;
             }
@@ -664,16 +1279,100 @@ namespace USR_ElectroPilot.Forms
 
         private void UpdateModeButtons()
         {
+            var canProduce = CanRunProduction();
             btnAutoMode.Checked = _autoMode;
             btnManualMode.Checked = !_autoMode;
             btnEmergencyStop.Checked = _emergencyStop;
-            btnStartCycle.Enabled = !_emergencyStop;
-            btnStopCycle.Enabled = _cycleRunning;
+            btnAutoMode.Enabled = canProduce;
+            btnManualMode.Enabled = canProduce;
+            btnNewJob.Enabled = canProduce && !_emergencyStop;
+            var anyStoppedLine = HasAnyStartableLine();
+            var anyRunningJob = HasAnyRunningJob();
+            btnStartCycle.Enabled = canProduce && !_emergencyStop && anyStoppedLine;
+            btnStartLine1Job.Enabled = false;
+            btnStopLine1Job.Enabled = false;
+            btnStopCycle.Enabled = canProduce && anyRunningJob;
+            btnPauseRecipe.Enabled = canProduce && anyRunningJob;
+        }
+
+        private bool IsLineJobRunning(int lineId)
+        {
+            foreach (var job in _jobs)
+            {
+                if (job.LineId == lineId &&
+                    !string.Equals(job.Status, "Complete", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(job.Status, "Paused", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasAnyStartableLine()
+        {
+            return HasRecipeForLine(1) && HasHoistForLine(1) && !IsLineJobRunning(1);
+        }
+
+        private bool HasAnyRunningJob()
+        {
+            foreach (var job in _jobs)
+            {
+                if (!string.Equals(job.Status, "Complete", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(job.Status, "Paused", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasRecipeForLine(int lineId)
+        {
+            foreach (var step in _processSteps)
+            {
+                if (step.LineId == lineId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasHoistForLine(int lineId)
+        {
+            foreach (var hoist in _hoists)
+            {
+                if (hoist.LineId == lineId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static List<HoistModel> GetSingleMainHoistList(IEnumerable<HoistModel> hoists)
+        {
+            if (hoists == null)
+            {
+                return new List<HoistModel>();
+            }
+
+            return hoists
+                .Where(hoist => hoist.LineId <= 0 || hoist.LineId == 1)
+                .OrderBy(hoist => string.Equals(hoist.HoistName, "H1", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(hoist => hoist.HoistId)
+                .Take(1)
+                .ToList();
         }
 
         private void ConfigureAddRowAccess()
         {
-            var allowed = AppSession.HasRole(Constants.RoleAdmin);
+            var allowed = false;
             btnAddRow.Available = allowed;
             btnAddRow.Visible = allowed;
             btnAddRow.Enabled = allowed;
@@ -682,7 +1381,7 @@ namespace USR_ElectroPilot.Forms
 
         private void UpdateAddRowText()
         {
-            btnAddRow.Text = "Add Row (" + _scadaTankRows + ")";
+            btnAddRow.Text = "Tank Count";
         }
 
         private void UpdateHeaderIndicators(PlantStatusModel status)
@@ -693,6 +1392,18 @@ namespace USR_ElectroPilot.Forms
             {
                 lblPlantStatus.Text = status.ActiveAlarmCount > 0 ? "Plant: Alarm" : "Plant: Normal";
             }
+        }
+
+        private void HideLegacyTopNavigation()
+        {
+            toolStrip.Visible = false;
+            toolStrip.Height = 0;
+            tabs.Controls.Remove(tabWagons);
+            tabs.Controls.Remove(tabRectifiers);
+            tabs.Controls.Remove(tabAlarms);
+            tabs.Appearance = TabAppearance.FlatButtons;
+            tabs.ItemSize = new System.Drawing.Size(1, 1);
+            tabs.SizeMode = TabSizeMode.Fixed;
         }
     }
 }

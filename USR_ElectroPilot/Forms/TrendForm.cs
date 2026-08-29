@@ -94,7 +94,7 @@ namespace USR_ElectroPilot.Forms
 
         private void LoadTankChoices()
         {
-            _tanks = _tankService.GetTanks().OrderBy(t => t.TankNumber).ToList();
+            _tanks = _tankService.GetTanks().OrderBy(t => t.LineId).ThenBy(t => t.TankNo).ToList();
             cboTank.DisplayMember = "Name";
             cboTank.ValueMember = "Id";
             cboTank.DataSource = _tanks;

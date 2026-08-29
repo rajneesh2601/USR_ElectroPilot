@@ -7,8 +7,8 @@ namespace USR_ElectroPilot.Data
     public static class SqliteConnectionFactory
     {
         private static readonly string _dbPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "Database",
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "USRElectroPilot",
             "usr_electropilot.db");
 
         public static string DatabaseDirectory

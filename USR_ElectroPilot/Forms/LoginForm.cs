@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using USR_ElectroPilot.Helpers;
+using USR_ElectroPilot.Models;
 using USR_ElectroPilot.Services;
 
 namespace USR_ElectroPilot.Forms
@@ -14,6 +15,8 @@ namespace USR_ElectroPilot.Forms
             InitializeComponent();
         }
 
+        public UserModel AuthenticatedUser { get; private set; }
+
         private void LoginForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
@@ -22,6 +25,7 @@ namespace USR_ElectroPilot.Forms
 
         public void ResetForNextLogin()
         {
+            AuthenticatedUser = null;
             DialogResult = DialogResult.None;
             txtUsername.Clear();
             txtPassword.Clear();
@@ -47,6 +51,7 @@ namespace USR_ElectroPilot.Forms
         private void TryLogin()
         {
             string message;
+            UserModel user;
             var username = txtUsername.Text.Trim();
             var password = txtPassword.Text;
 
@@ -55,8 +60,9 @@ namespace USR_ElectroPilot.Forms
 
             try
             {
-                if (_authService.Login(username, password, out message))
+                if (_authService.Authenticate(username, password, out user, out message))
                 {
+                    AuthenticatedUser = user;
                     DialogResult = DialogResult.OK;
                     Hide();
                     return;

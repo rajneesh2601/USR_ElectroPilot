@@ -56,6 +56,7 @@ namespace USR_ElectroPilot.Forms
             this.filterPanel.Controls.Add(this.lblFrom);
             this.filterPanel.Controls.Add(this.lblStatus);
             this.filterPanel.Controls.Add(this.lblLoadNumber);
+            this.filterPanel.AutoScroll = true;
             this.filterPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.filterPanel.Location = new System.Drawing.Point(0, 0);
             this.filterPanel.Name = "filterPanel";

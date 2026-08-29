@@ -114,7 +114,7 @@ namespace USR_ElectroPilot.Forms.Admin
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(884, 561);
             this.Controls.Add(this.tabs);
-            this.MinimumSize = new System.Drawing.Size(760, 480);
+            this.MinimumSize = new System.Drawing.Size(1060, 560);
             this.Name = "AdminPanelForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Admin Panel";

@@ -13,7 +13,7 @@ namespace USR_ElectroPilot.Data
 
             using (var connection = SqliteConnectionFactory.CreateConnection())
             using (var command = new SQLiteCommand(
-                @"SELECT ps.*, t.TankNumber AS ResolvedTankNo
+                @"SELECT ps.*, t.TankNo AS ResolvedTankNo, t.LineId AS ResolvedLineId
                   FROM ProcessSteps ps
                   LEFT JOIN Tanks t ON t.Id = ps.TankId
                   WHERE ps.IsActive = 1
@@ -39,6 +39,7 @@ namespace USR_ElectroPilot.Data
             {
                 StepId = Convert.ToInt32(reader["StepId"]),
                 StepNo = Convert.ToInt32(reader["StepNo"]),
+                LineId = ReadInt(reader, "LineId", "ResolvedLineId"),
                 TankId = Convert.ToInt32(reader["TankId"]),
                 TankNo = ReadInt(reader, "TankNo", "ResolvedTankNo"),
                 StepName = Convert.ToString(reader["StepName"]),

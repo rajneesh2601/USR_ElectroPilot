@@ -19,19 +19,46 @@ namespace USR_ElectroPilot.Controls
         public string Title
         {
             get { return _title; }
-            set { _title = value; Invalidate(); }
+            set
+            {
+                if (_title == value)
+                {
+                    return;
+                }
+
+                _title = value;
+                Invalidate();
+            }
         }
 
         public string Value
         {
             get { return _value; }
-            set { _value = value; Invalidate(); }
+            set
+            {
+                if (_value == value)
+                {
+                    return;
+                }
+
+                _value = value;
+                Invalidate();
+            }
         }
 
         public string Caption
         {
             get { return _caption; }
-            set { _caption = value; Invalidate(); }
+            set
+            {
+                if (_caption == value)
+                {
+                    return;
+                }
+
+                _caption = value;
+                Invalidate();
+            }
         }
 
         protected override void OnPaint(PaintEventArgs e)

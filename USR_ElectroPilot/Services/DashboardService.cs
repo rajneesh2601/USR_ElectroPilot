@@ -24,7 +24,12 @@ namespace USR_ElectroPilot.Services
             var loads = _loadRepository.GetAll();
             var rectifiers = _rectifierRepository.GetAll();
             var steps = _processStepRepository.GetActive();
-            var hoists = _hoistRepository.GetAll();
+            var hoists = _hoistRepository.GetAll()
+                .Where(h => h.LineId <= 0 || h.LineId == 1)
+                .OrderBy(h => string.Equals(h.HoistName, "H1", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(h => h.HoistId)
+                .Take(1)
+                .ToList();
             var jobs = _jobRepository.GetActive();
             var activeJob = jobs.FirstOrDefault();
             var activeHoist = hoists.FirstOrDefault(h => activeJob != null && h.CurrentJobId == activeJob.JobId) ?? hoists.FirstOrDefault();

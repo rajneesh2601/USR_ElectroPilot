@@ -44,10 +44,21 @@ namespace USR_ElectroPilot.Services
             _alarmRepository.Acknowledge(id, AppSession.Username);
         }
 
+        public void AcknowledgeAlarm(int id, string username)
+        {
+            _alarmRepository.Acknowledge(id, username ?? string.Empty);
+        }
+
         public void ResetActiveAlarms()
         {
             DatabaseHelper.InitializeDatabase();
             _alarmRepository.AcknowledgeActive(AppSession.Username);
+        }
+
+        public void ResetActiveAlarms(string username)
+        {
+            DatabaseHelper.InitializeDatabase();
+            _alarmRepository.AcknowledgeActive(username ?? string.Empty);
         }
     }
 }

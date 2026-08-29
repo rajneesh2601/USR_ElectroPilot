@@ -62,6 +62,7 @@ namespace USR_ElectroPilot.Forms.Admin
             this.filterPanel.Controls.Add(this.lblEntity);
             this.filterPanel.Controls.Add(this.lblAction);
             this.filterPanel.Controls.Add(this.lblUsername);
+            this.filterPanel.AutoScroll = true;
             this.filterPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.filterPanel.Location = new System.Drawing.Point(0, 0);
             this.filterPanel.Name = "filterPanel";
@@ -150,7 +151,7 @@ namespace USR_ElectroPilot.Forms.Admin
             this.ClientSize = new System.Drawing.Size(1044, 561);
             this.Controls.Add(this.gridAudit);
             this.Controls.Add(this.filterPanel);
-            this.MinimumSize = new System.Drawing.Size(900, 500);
+            this.MinimumSize = new System.Drawing.Size(1060, 500);
             this.Name = "AuditLogForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Audit Log";

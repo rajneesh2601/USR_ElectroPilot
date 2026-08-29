@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using USR_ElectroPilot.Data;
 using USR_ElectroPilot.Helpers;
@@ -8,6 +10,9 @@ namespace USR_ElectroPilot.Forms
     public partial class SplashForm : Form
     {
         private int _progress;
+        private bool _databaseReady;
+        private bool _databaseFailed;
+        private bool _openingLogin;
 
         public SplashForm()
         {
@@ -20,50 +25,66 @@ namespace USR_ElectroPilot.Forms
             lblTitle.Text = Constants.ApplicationName;
             lblSubtitle.Text = "Powered By " + Constants.CompanyName;
             lblStatus.Text = "Initializing database...";
-
-            try
-            {
-                DatabaseHelper.InitializeDatabase();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error("Splash initialization failed", ex);
-                lblStatus.Text = "Initialization failed. Check Logs folder.";
-                progressTimer.Stop();
-                return;
-            }
-
             progressTimer.Start();
+
+            Task.Run(new Action(DatabaseHelper.InitializeDatabase)).ContinueWith(task =>
+            {
+                if (IsDisposed || !IsHandleCreated)
+                {
+                    return;
+                }
+
+                BeginInvoke((MethodInvoker)delegate
+                {
+                    if (task.IsFaulted)
+                    {
+                        var ex = task.Exception == null ? null : task.Exception.GetBaseException();
+                        Logger.Error("Splash initialization failed", ex);
+                        _databaseFailed = true;
+                        lblStatus.Text = "Initialization failed. Check Logs folder.";
+                        progressTimer.Stop();
+                        return;
+                    }
+
+                    _databaseReady = true;
+                    lblStatus.Text = "Ready";
+                });
+            });
         }
 
         private void ProgressTimer_Tick(object sender, EventArgs e)
         {
-            _progress += 4;
+            if (_databaseFailed || _openingLogin)
+            {
+                return;
+            }
+
+            _progress += _databaseReady ? 20 : 8;
+            if (!_databaseReady && _progress > 90)
+            {
+                _progress = 90;
+            }
 
             if (_progress >= 100)
             {
                 _progress = 100;
                 progressTimer.Stop();
                 lblStatus.Text = "Ready";
+                _openingLogin = true;
 
+                DashboardWindowManager.RegisterApplicationHost(this);
                 using (var loginForm = new LoginForm())
                 {
                     Hide();
-                    while (true)
+                    loginForm.ResetForNextLogin();
+                    if (loginForm.ShowDialog() == DialogResult.OK)
                     {
-                        loginForm.ResetForNextLogin();
-                        if (loginForm.ShowDialog(this) != DialogResult.OK)
-                        {
-                            break;
-                        }
-
-                        using (var mainForm = new MainForm())
-                        {
-                            mainForm.ShowDialog(this);
-                        }
+                        DashboardWindowManager.OpenDashboard(loginForm.AuthenticatedUser);
                     }
-
-                    Close();
+                    else
+                    {
+                        Close();
+                    }
                 }
             }
             else if (_progress >= 70)

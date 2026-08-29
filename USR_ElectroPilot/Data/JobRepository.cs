@@ -16,8 +16,8 @@ namespace USR_ElectroPilot.Data
         {
             using (var connection = SqliteConnectionFactory.CreateConnection())
             using (var command = new SQLiteCommand(
-                @"INSERT INTO Jobs (JobNumber, CurrentStep, CurrentTank, Status, RemainingSeconds, StartedAt, CompletedAt)
-                  VALUES (@JobNumber, @CurrentStep, @CurrentTank, @Status, @RemainingSeconds, @StartedAt, @CompletedAt);
+                @"INSERT INTO Jobs (JobNumber, LineId, CurrentStep, StepDirection, CurrentTank, Status, RemainingSeconds, StartedAt, CompletedAt)
+                  VALUES (@JobNumber, @LineId, @CurrentStep, @StepDirection, @CurrentTank, @Status, @RemainingSeconds, @StartedAt, @CompletedAt);
                   SELECT last_insert_rowid();",
                 connection))
             {
@@ -33,7 +33,9 @@ namespace USR_ElectroPilot.Data
             using (var command = new SQLiteCommand(
                 @"UPDATE Jobs
                   SET JobNumber = @JobNumber,
+                      LineId = @LineId,
                       CurrentStep = @CurrentStep,
+                      StepDirection = @StepDirection,
                       CurrentTank = @CurrentTank,
                       Status = @Status,
                       RemainingSeconds = @RemainingSeconds,
@@ -72,7 +74,9 @@ namespace USR_ElectroPilot.Data
         private static void AddParameters(SQLiteCommand command, JobModel job)
         {
             command.Parameters.AddWithValue("@JobNumber", job.JobNumber);
+            command.Parameters.AddWithValue("@LineId", job.LineId <= 0 ? 1 : job.LineId);
             command.Parameters.AddWithValue("@CurrentStep", job.CurrentStep);
+            command.Parameters.AddWithValue("@StepDirection", job.StepDirection == 0 ? 1 : job.StepDirection);
             command.Parameters.AddWithValue("@CurrentTank", job.CurrentTank);
             command.Parameters.AddWithValue("@Status", job.Status);
             command.Parameters.AddWithValue("@RemainingSeconds", job.RemainingSeconds);
@@ -86,13 +90,28 @@ namespace USR_ElectroPilot.Data
             {
                 JobId = Convert.ToInt32(reader["JobId"]),
                 JobNumber = Convert.ToString(reader["JobNumber"]),
+                LineId = ReadInt(reader, "LineId", 1),
                 CurrentStep = Convert.ToInt32(reader["CurrentStep"]),
+                StepDirection = ReadInt(reader, "StepDirection", 1),
                 CurrentTank = Convert.ToInt32(reader["CurrentTank"]),
                 Status = Convert.ToString(reader["Status"]),
                 RemainingSeconds = Convert.ToInt32(reader["RemainingSeconds"]),
                 StartedAt = DateTime.Parse(Convert.ToString(reader["StartedAt"])),
                 CompletedAt = reader["CompletedAt"] == DBNull.Value ? (DateTime?)null : DateTime.Parse(Convert.ToString(reader["CompletedAt"]))
             };
+        }
+
+        private static int ReadInt(SQLiteDataReader reader, string columnName, int fallback)
+        {
+            try
+            {
+                var value = reader[columnName];
+                return value == DBNull.Value ? fallback : Convert.ToInt32(value);
+            }
+            catch (IndexOutOfRangeException)
+            {
+                return fallback;
+            }
         }
     }
 }

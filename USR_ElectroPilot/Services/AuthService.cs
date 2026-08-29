@@ -26,7 +26,20 @@ namespace USR_ElectroPilot.Services
 
         public bool Login(string username, string password, out string message)
         {
+            UserModel user;
+            if (!Authenticate(username, password, out user, out message))
+            {
+                return false;
+            }
+
+            AppSession.SignIn(user);
+            return true;
+        }
+
+        public bool Authenticate(string username, string password, out UserModel authenticatedUser, out string message)
+        {
             DatabaseHelper.InitializeDatabase();
+            authenticatedUser = null;
 
             var user = _userRepository.GetByUsername(username);
             if (user == null)
@@ -61,9 +74,9 @@ namespace USR_ElectroPilot.Services
             user.LockoutUntil = null;
             user.LastLoginAt = DateTime.Now;
             _userRepository.Update(user);
-            AppSession.SignIn(user);
             _userActivityService.RecordActivity(user.Id, user.Username, "LoginSuccess", "User signed in");
 
+            authenticatedUser = user;
             message = "Login successful.";
             return true;
         }
@@ -80,6 +93,20 @@ namespace USR_ElectroPilot.Services
             }
 
             AppSession.SignOut();
+        }
+
+        public void Logout(UserModel user)
+        {
+            if (user == null)
+            {
+                return;
+            }
+
+            _userActivityService.RecordActivity(
+                user.Id,
+                user.Username,
+                "Logout",
+                "User signed out");
         }
 
         private void RegisterFailedLogin(UserModel user)

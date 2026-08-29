@@ -58,6 +58,7 @@ namespace USR_ElectroPilot.Forms
             this.topPanel.Controls.Add(this.lblFrom);
             this.topPanel.Controls.Add(this.lblTank);
             this.topPanel.Controls.Add(this.lblMetric);
+            this.topPanel.AutoScroll = true;
             this.topPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.topPanel.Location = new System.Drawing.Point(0, 0);
             this.topPanel.Name = "topPanel";
@@ -68,6 +69,7 @@ namespace USR_ElectroPilot.Forms
             // lblSummary
             // 
             this.lblSummary.AutoSize = true;
+            this.lblSummary.MaximumSize = new System.Drawing.Size(260, 0);
             this.lblSummary.Location = new System.Drawing.Point(763, 43);
             this.lblSummary.Name = "lblSummary";
             this.lblSummary.Size = new System.Drawing.Size(92, 13);

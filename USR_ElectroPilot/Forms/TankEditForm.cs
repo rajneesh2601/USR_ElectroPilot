@@ -23,9 +23,10 @@ namespace USR_ElectroPilot.Forms
         private void TankEditForm_Load(object sender, EventArgs e)
         {
             UiHelper.ApplyDarkTheme(this);
+            numLineId.Value = 1;
             txtName.Text = Tank.Name;
             txtChemical.Text = Tank.ChemicalName;
-            numTankNumber.Value = Tank.TankNumber <= 0 ? 1 : Tank.TankNumber;
+            numTankNumber.Value = Tank.TankNo <= 0 ? 1 : Tank.TankNo;
             numCapacity.Value = ToDecimal(Tank.CapacityLiters, 0, 100000);
             numLevel.Value = ToDecimal(Tank.CurrentLevelLiters, 0, 100000);
             numTemperature.Value = ToDecimal(Tank.TemperatureCelsius, 0, 200);
@@ -43,7 +44,8 @@ namespace USR_ElectroPilot.Forms
                 return;
             }
 
-            Tank.TankNumber = Convert.ToInt32(numTankNumber.Value);
+            Tank.LineId = 1;
+            Tank.TankNo = Convert.ToInt32(numTankNumber.Value);
             Tank.Name = txtName.Text.Trim();
             Tank.ChemicalName = txtChemical.Text.Trim();
             Tank.CapacityLiters = Convert.ToDouble(numCapacity.Value);
@@ -63,8 +65,10 @@ namespace USR_ElectroPilot.Forms
             return new TankModel
             {
                 Id = tank.Id,
-                TankNumber = tank.TankNumber,
+                LineId = tank.LineId,
+                TankNo = tank.TankNo,
                 Name = tank.Name,
+                LineName = tank.LineName,
                 ChemicalName = tank.ChemicalName,
                 CapacityLiters = tank.CapacityLiters,
                 CurrentLevelLiters = tank.CurrentLevelLiters,

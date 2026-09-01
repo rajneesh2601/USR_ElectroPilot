@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using USR_ElectroPilot.Helpers;
 using USR_ElectroPilot.Models;
+using USR_ElectroPilot.Services;
 using USR_ElectroPilot.ThreeD.Views;
 
 namespace USR_ElectroPilot.Controls
@@ -20,6 +21,7 @@ namespace USR_ElectroPilot.Controls
         private readonly Label _plantStateLabel;
         private readonly Label _modeLabel;
         private readonly Label _hoistLabel;
+        private readonly Label _communicationLabel;
         private readonly Label _clockLabel;
         private readonly Label _operatorLabel;
         private readonly Label _totalTankValue;
@@ -30,6 +32,11 @@ namespace USR_ElectroPilot.Controls
         private readonly Label _criticalAlarmValue;
         private readonly Label _majorAlarmValue;
         private readonly Label _minorAlarmValue;
+        private readonly Label _selectedEquipmentTitle;
+        private readonly Label _selectedLevelTemperatureValue;
+        private readonly Label _selectedElectricalValue;
+        private readonly Label _selectedMotorValue;
+        private readonly Label _selectedQualityValue;
         private readonly DataGridView _alarmGrid;
         private readonly ContextMenuStrip _viewMenu;
         private readonly ContextMenuStrip _tankMenu;
@@ -93,6 +100,7 @@ namespace USR_ElectroPilot.Controls
             _plantStateLabel = CreateHeaderValue("Plant: Normal", Color.LimeGreen, "Plant", true, false);
             _modeLabel = CreateHeaderValue("Auto Mode", Color.DeepSkyBlue, "Mode", false, true);
             _hoistLabel = CreateHeaderValue("Hoist H1  Idle", Color.LimeGreen, "Hoist", true, false);
+            _communicationLabel = CreateHeaderValue("Data UNKNOWN", Color.Gold, "Connection", true, false);
             _clockLabel = CreateHeaderValue(DateTime.Now.ToString("HH:mm:ss"), Color.White, "Clock", false, false);
             _operatorLabel = CreateHeaderValue("Operator", Color.White, "User", false, false, true);
             _totalTankValue = CreateKpiValue("0", Color.DeepSkyBlue);
@@ -103,6 +111,11 @@ namespace USR_ElectroPilot.Controls
             _criticalAlarmValue = CreateSeverityValue("0", Color.Tomato);
             _majorAlarmValue = CreateSeverityValue("0", Color.Orange);
             _minorAlarmValue = CreateSeverityValue("0", Color.Gold);
+            _selectedEquipmentTitle = CreateEquipmentDetailLabel("No tank selected", Color.DeepSkyBlue, true);
+            _selectedLevelTemperatureValue = CreateEquipmentDetailLabel("Level -- | Temp --", Color.White, false);
+            _selectedElectricalValue = CreateEquipmentDetailLabel("Electrical --", Color.White, false);
+            _selectedMotorValue = CreateEquipmentDetailLabel("Motor UNKNOWN", Color.LightGray, true);
+            _selectedQualityValue = CreateEquipmentDetailLabel("Data UNKNOWN", Color.LightGray, false);
             _alarmGrid = BuildAlarmGrid();
             _viewMenu = BuildViewMenu();
             _tankMenu = BuildTankMenu();
@@ -113,7 +126,7 @@ namespace USR_ElectroPilot.Controls
             BuildShell();
         }
 
-        public void BindData(IList<TankModel> tanks, IList<WagonModel> wagons, IList<ProcessStepModel> processSteps, IList<HoistModel> hoists, IList<JobModel> jobs, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop, int requestedRows)
+        public void BindData(IList<TankModel> tanks, IList<WagonModel> wagons, IList<ProcessStepModel> processSteps, IList<HoistModel> hoists, IList<JobModel> jobs, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop, int requestedRows, PlantTelemetrySnapshot telemetrySnapshot = null)
         {
             var tankList = tanks == null
                 ? new List<TankModel>()
@@ -127,10 +140,17 @@ namespace USR_ElectroPilot.Controls
                 ? new List<HoistModel>()
                 : hoists.OrderBy(h => string.Equals(h.HoistName, "H1", StringComparison.OrdinalIgnoreCase) ? 0 : 1).ThenBy(h => h.HoistId).Take(1).ToList();
             var jobList = jobs == null ? new List<JobModel>() : jobs.ToList();
-            var criticalAlarms = tankList.Count(t => IsFaultStatus(t.Status)) + hoistList.Count(h => IsFaultStatus(h.Status)) + (emergencyStop ? 1 : 0);
+            var telemetryAlarms = new EquipmentTelemetryAlarmService().Evaluate(
+                telemetrySnapshot,
+                DateTime.UtcNow,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(3));
+            var criticalAlarms = tankList.Count(t => IsFaultStatus(t.Status)) + hoistList.Count(h => IsFaultStatus(h.Status)) + (emergencyStop ? 1 : 0) +
+                telemetryAlarms.Count(a => string.Equals(a.Severity, "Critical", StringComparison.OrdinalIgnoreCase));
             var majorAlarms = tankList.Count(t => string.Equals(t.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase)) +
+                telemetryAlarms.Count(a => string.Equals(a.Severity, "Major", StringComparison.OrdinalIgnoreCase)) +
                 hoistList.Count(h => string.Equals(h.Status, Constants.StatusWarning, StringComparison.OrdinalIgnoreCase));
-            var minorAlarms = 0;
+            var minorAlarms = telemetryAlarms.Count(a => string.Equals(a.Severity, "Minor", StringComparison.OrdinalIgnoreCase));
             var activeAlarms = criticalAlarms + majorAlarms + minorAlarms;
             var primaryHoist = hoistList.FirstOrDefault();
             var hoistStatusText = primaryHoist == null ? (hoistStatus == null ? "Idle" : hoistStatus.Status) : primaryHoist.Status;
@@ -149,16 +169,17 @@ namespace USR_ElectroPilot.Controls
             _hoistLabel.Text = "Hoist H1  " + (string.IsNullOrWhiteSpace(hoistStatusText) ? "Idle" : hoistStatusText);
             _hoistLabel.ForeColor = GetStatusColor(hoistStatusText, emergencyStop);
             _clockLabel.Text = DateTime.Now.ToString("HH:mm:ss") + Environment.NewLine + DateTime.Now.ToString("MMM dd, yyyy");
+            UpdateCommunicationHeartbeat(telemetrySnapshot);
             _totalTankValue.Text = tankList.Count.ToString();
             _runningTankValue.Text = tankList.Count(t => string.Equals(t.Status, Constants.StatusRunning, StringComparison.OrdinalIgnoreCase)).ToString();
             _hoistPositionValue.Text = "Tank " + hoistTankNo.ToString("00");
-            _currentStepValue.Text = remainingSeconds > 0 ? stepText + Environment.NewLine + remainingSeconds + "s" : stepText;
+            _currentStepValue.Text = remainingSeconds > 0 ? stepText + "  |  " + remainingSeconds + "s" : stepText;
             _activeAlarmValue.Text = activeAlarms.ToString();
             _activeAlarmValue.ForeColor = activeAlarms > 0 ? Color.Tomato : Color.LimeGreen;
             _criticalAlarmValue.Text = criticalAlarms.ToString();
             _majorAlarmValue.Text = majorAlarms.ToString();
             _minorAlarmValue.Text = minorAlarms.ToString();
-            _alarmGrid.DataSource = BuildAlarmTable(tankList, jobList, emergencyStop);
+            _alarmGrid.DataSource = BuildAlarmTable(tankList, jobList, emergencyStop, telemetryAlarms);
 
             UpdateButtonState();
             var pending = new PendingPlantData
@@ -172,10 +193,12 @@ namespace USR_ElectroPilot.Controls
                 CurrentStepName = currentStepName,
                 RemainingSeconds = remainingSeconds,
                 AutoMode = autoMode,
-                EmergencyStop = emergencyStop
+                EmergencyStop = emergencyStop,
+                TelemetrySnapshot = telemetrySnapshot
             };
 
             _pendingPlantData = pending;
+            UpdateSelectedEquipmentPanel();
             if (_plantView != null)
             {
                 ApplyPendingPlantData();
@@ -189,6 +212,7 @@ namespace USR_ElectroPilot.Controls
         public void SelectTank(int tankId)
         {
             _pendingSelectedTankId = tankId;
+            UpdateSelectedEquipmentPanel();
             if (_plantView != null)
             {
                 _plantView.SelectTank(tankId);
@@ -265,7 +289,8 @@ namespace USR_ElectroPilot.Controls
                 data.CurrentStepName,
                 data.RemainingSeconds,
                 data.AutoMode,
-                data.EmergencyStop);
+                data.EmergencyStop,
+                data.TelemetrySnapshot);
         }
 
         private void BuildShell()
@@ -333,6 +358,7 @@ namespace USR_ElectroPilot.Controls
             header.Controls.Add(_plantStateLabel, 1, 0);
             header.Controls.Add(_modeLabel, 2, 0);
             header.Controls.Add(_hoistLabel, 3, 0);
+            header.Controls.Add(_communicationLabel, 4, 0);
             header.Controls.Add(_clockLabel, 5, 0);
             _operatorLabel.Cursor = Cursors.Hand;
             _operatorLabel.ContextMenuStrip = _accountMenu;
@@ -477,7 +503,7 @@ namespace USR_ElectroPilot.Controls
             panel.Controls.Add(CreateKpiCard("TOTAL TANKS", _totalTankValue, "Tanks", "Tanks", Color.DeepSkyBlue));
             panel.Controls.Add(CreateKpiCard("RUNNING TANKS", _runningTankValue, "Running", "Running", Color.LimeGreen));
             panel.Controls.Add(CreateKpiCard("HOIST POSITION", _hoistPositionValue, "Current", "Hoist", Color.DeepSkyBlue));
-            panel.Controls.Add(CreateKpiCard("CURRENT STEP", _currentStepValue, "Process", "Step", Color.DeepSkyBlue));
+            panel.Controls.Add(CreateSelectedEquipmentCard());
             panel.Controls.Add(CreateAlarmKpiCard());
             panel.Layout += KpiPanel_Layout;
 
@@ -697,6 +723,72 @@ namespace USR_ElectroPilot.Controls
                 Font = new Font("Segoe UI", 22F, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft
             };
+        }
+
+        private static Label CreateEquipmentDetailLabel(string text, Color color, bool bold)
+        {
+            return new Label
+            {
+                AutoSize = false,
+                Text = text,
+                ForeColor = color,
+                Font = new Font("Segoe UI", 9F, bold ? FontStyle.Bold : FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+        }
+
+        private Control CreateSelectedEquipmentCard()
+        {
+            var panel = new Panel
+            {
+                Name = "SelectedEquipmentCard",
+                Width = 226,
+                Height = 180,
+                BackColor = Color.FromArgb(8, 27, 36),
+                Margin = new Padding(0, 0, 0, 10),
+                Padding = new Padding(16, 10, 16, 8)
+            };
+
+            _selectedEquipmentTitle.Location = new Point(16, 38);
+            _selectedEquipmentTitle.Size = new Size(194, 24);
+            _currentStepValue.Dock = DockStyle.None;
+            _currentStepValue.Location = new Point(16, 62);
+            _currentStepValue.Size = new Size(194, 24);
+            _currentStepValue.AutoSize = false;
+            _currentStepValue.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _currentStepValue.TextAlign = ContentAlignment.MiddleLeft;
+            _selectedLevelTemperatureValue.Location = new Point(16, 86);
+            _selectedLevelTemperatureValue.Size = new Size(194, 21);
+            _selectedElectricalValue.Location = new Point(16, 107);
+            _selectedElectricalValue.Size = new Size(194, 21);
+            _selectedMotorValue.Location = new Point(16, 128);
+            _selectedMotorValue.Size = new Size(194, 21);
+            _selectedQualityValue.Location = new Point(16, 149);
+            _selectedQualityValue.Size = new Size(194, 21);
+
+            panel.Controls.Add(_selectedQualityValue);
+            panel.Controls.Add(_selectedMotorValue);
+            panel.Controls.Add(_selectedElectricalValue);
+            panel.Controls.Add(_selectedLevelTemperatureValue);
+            panel.Controls.Add(_currentStepValue);
+            panel.Controls.Add(_selectedEquipmentTitle);
+            panel.Controls.Add(new Panel
+            {
+                BackColor = Color.FromArgb(18, 88, 114),
+                Location = new Point(16, 35),
+                Size = new Size(194, 1)
+            });
+            panel.Controls.Add(new Label
+            {
+                Location = new Point(16, 10),
+                Size = new Size(194, 24),
+                Text = "SELECTED EQUIPMENT",
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+
+            return panel;
         }
 
         private static Label CreateSeverityValue(string text, Color color)
@@ -941,7 +1033,7 @@ namespace USR_ElectroPilot.Controls
             }
         }
 
-        private static DataTable BuildAlarmTable(IList<TankModel> tanks, IList<JobModel> jobs, bool emergencyStop)
+        private static DataTable BuildAlarmTable(IList<TankModel> tanks, IList<JobModel> jobs, bool emergencyStop, IList<AlarmModel> telemetryAlarms)
         {
             var table = new DataTable();
             table.Columns.Add("Time");
@@ -957,7 +1049,12 @@ namespace USR_ElectroPilot.Controls
                 AddAlarmRow(table, "Plant", "Safety", "Emergency stop active", "Critical", "Active");
             }
 
-            foreach (var tank in tanks.Where(t => IsAlarmStatus(t.Status)).Take(5))
+            foreach (var alarm in (telemetryAlarms ?? new AlarmModel[0]).Take(5))
+            {
+                AddAlarmRow(table, "Equipment", alarm.Source, alarm.Message, alarm.Severity, alarm.State);
+            }
+
+            foreach (var tank in tanks.Where(t => IsAlarmStatus(t.Status)).Take(Math.Max(0, 5 - table.Rows.Count)))
             {
                 AddAlarmRow(
                     table,
@@ -1184,10 +1281,75 @@ namespace USR_ElectroPilot.Controls
 
         private void PlantView_TankSelected(object sender, int tankId)
         {
+            _pendingSelectedTankId = tankId;
+            UpdateSelectedEquipmentPanel();
             if (TankSelected != null)
             {
                 TankSelected(this, new TankControlEventArgs(tankId));
             }
+        }
+
+        private void UpdateSelectedEquipmentPanel()
+        {
+            var data = _pendingPlantData;
+            var tank = data == null || !_pendingSelectedTankId.HasValue
+                ? null
+                : data.Tanks.FirstOrDefault(t => t.Id == _pendingSelectedTankId.Value);
+            if (tank == null)
+            {
+                _selectedEquipmentTitle.Text = "No tank selected";
+                _selectedLevelTemperatureValue.Text = "Level -- | Temp --";
+                _selectedElectricalValue.Text = "Electrical --";
+                _selectedMotorValue.Text = "Motor UNKNOWN";
+                _selectedMotorValue.ForeColor = Color.LightGray;
+                _selectedQualityValue.Text = "Data UNKNOWN";
+                _selectedQualityValue.ForeColor = Color.LightGray;
+                return;
+            }
+
+            var chemical = string.IsNullOrWhiteSpace(tank.ChemicalName) ? tank.Name : tank.ChemicalName;
+            var level = tank.CapacityLiters <= 0 ? 0 : Math.Max(0, Math.Min(100, tank.CurrentLevelLiters * 100.0 / tank.CapacityLiters));
+            _selectedEquipmentTitle.Text = "T" + tank.TankNo.ToString("00") + "  " + chemical;
+            _selectedLevelTemperatureValue.Text = "Level " + level.ToString("0") + "%  |  Temp " + tank.TemperatureCelsius.ToString("0.0") + " C";
+            _selectedElectricalValue.Text = tank.Voltage.ToString("0.0") + " V  |  " + tank.CurrentAmps.ToString("0.0") + " A";
+
+            var telemetry = data.TelemetrySnapshot;
+            var motor = telemetry == null
+                ? null
+                : telemetry.Motors.FirstOrDefault(m =>
+                    (m.TankId.HasValue && m.TankId.Value == tank.Id) ||
+                    (m.TankNo.HasValue && m.TankNo.Value == tank.TankNo));
+            var state = EquipmentTelemetryStateResolver.Resolve(motor, DateTime.UtcNow, TimeSpan.FromSeconds(5));
+            _selectedMotorValue.Text = (motor == null ? "Motor" : motor.EquipmentId) + "  " + state.ToString().ToUpperInvariant();
+            _selectedMotorValue.ForeColor = GetEquipmentStateColor(state);
+
+            var quality = motor == null ? TelemetryQuality.Unknown : motor.Quality;
+            var ageSeconds = motor == null || motor.LastUpdatedUtc == DateTime.MinValue
+                ? 0
+                : Math.Max(0, (DateTime.UtcNow - motor.LastUpdatedUtc).TotalSeconds);
+            _selectedQualityValue.Text = "Data " + quality.ToString().ToUpperInvariant() + (motor == null ? string.Empty : "  |  " + ageSeconds.ToString("0") + "s");
+            _selectedQualityValue.ForeColor = quality == TelemetryQuality.Good ? Color.LimeGreen : quality == TelemetryQuality.Bad ? Color.Tomato : Color.Gold;
+        }
+
+        private static Color GetEquipmentStateColor(EquipmentOperatingState state)
+        {
+            if (state == EquipmentOperatingState.Running) return Color.LimeGreen;
+            if (state == EquipmentOperatingState.Fault || state == EquipmentOperatingState.BadData) return Color.Tomato;
+            if (state == EquipmentOperatingState.Warning || state == EquipmentOperatingState.Local || state == EquipmentOperatingState.Stale) return Color.Gold;
+            return Color.LightGray;
+        }
+
+        private void UpdateCommunicationHeartbeat(PlantTelemetrySnapshot snapshot)
+        {
+            var health = PlantTelemetryHealthResolver.Resolve(snapshot, DateTime.UtcNow, TimeSpan.FromSeconds(5));
+            var ageSeconds = Math.Max(0, health.Age.TotalSeconds);
+            _communicationLabel.Text = "Data " + health.Quality.ToString().ToUpperInvariant() +
+                (health.Sequence <= 0 ? string.Empty : "  " + ageSeconds.ToString("0") + "s  #" + health.Sequence);
+            _communicationLabel.ForeColor = health.Quality == TelemetryQuality.Good
+                ? Color.LimeGreen
+                : health.Quality == TelemetryQuality.Bad
+                    ? Color.Tomato
+                    : Color.Gold;
         }
 
         protected virtual void OnStartClicked(int tankId)
@@ -1285,6 +1447,7 @@ namespace USR_ElectroPilot.Controls
             public int RemainingSeconds { get; set; }
             public bool AutoMode { get; set; }
             public bool EmergencyStop { get; set; }
+            public PlantTelemetrySnapshot TelemetrySnapshot { get; set; }
         }
 
         private sealed class ScadaMenuColorTable : ProfessionalColorTable

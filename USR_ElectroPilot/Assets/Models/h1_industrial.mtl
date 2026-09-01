@@ -1,0 +1,215 @@
+# USR ElectroPilot H1 industrial materials
+newmtl SafetyYellow
+Ka 0.94 0.57 0.015
+Kd 0.94 0.57 0.015
+Ks 0.28 0.22 0.08
+Ns 85
+d 1.0
+illum 2
+
+newmtl YellowEdge
+Ka 0.72 0.35 0.005
+Kd 0.72 0.35 0.005
+Ks 0.22 0.18 0.05
+Ns 70
+d 1.0
+illum 2
+
+newmtl DarkSteel
+Ka 0.08 0.1 0.11
+Kd 0.08 0.1 0.11
+Ks 0.42 0.44 0.46
+Ns 120
+d 1.0
+illum 2
+
+newmtl BoltSteel
+Ka 0.04 0.05 0.055
+Kd 0.04 0.05 0.055
+Ks 0.48 0.5 0.52
+Ns 150
+d 1.0
+illum 2
+
+newmtl Stainless
+Ka 0.52 0.56 0.58
+Kd 0.52 0.56 0.58
+Ks 0.72 0.74 0.76
+Ns 190
+d 1.0
+illum 2
+
+newmtl WheelSteel
+Ka 0.1 0.12 0.13
+Kd 0.1 0.12 0.13
+Ks 0.52 0.54 0.56
+Ns 135
+d 1.0
+illum 2
+
+newmtl GearboxGrey
+Ka 0.2 0.22 0.23
+Kd 0.2 0.22 0.23
+Ks 0.38 0.4 0.42
+Ns 95
+d 1.0
+illum 2
+
+newmtl MotorGrey
+Ka 0.12 0.14 0.15
+Kd 0.12 0.14 0.15
+Ks 0.34 0.36 0.38
+Ns 90
+d 1.0
+illum 2
+
+newmtl Rubber
+Ka 0.018 0.022 0.024
+Kd 0.018 0.022 0.024
+Ks 0.05 0.05 0.05
+Ns 20
+d 1.0
+illum 2
+
+newmtl ChainSteel
+Ka 0.24 0.27 0.28
+Kd 0.24 0.27 0.28
+Ks 0.65 0.67 0.68
+Ns 170
+d 1.0
+illum 2
+
+newmtl Copper
+Ka 0.58 0.24 0.055
+Kd 0.58 0.24 0.055
+Ks 0.68 0.37 0.15
+Ns 125
+d 1.0
+illum 2
+
+newmtl PcbGreen
+Ka 0.025 0.22 0.105
+Kd 0.025 0.22 0.105
+Ks 0.22 0.32 0.24
+Ns 80
+d 1.0
+illum 2
+
+newmtl BrandBlue
+Ka 0.015 0.12 0.27
+Kd 0.015 0.12 0.27
+Ks 0.16 0.23 0.3
+Ns 90
+d 1.0
+illum 2
+
+newmtl StatusGreen
+Ka 0.02 0.72 0.2
+Kd 0.02 0.72 0.2
+Ks 0.18 0.7 0.24
+Ns 110
+d 1.0
+illum 2
+
+newmtl StatusAmber
+Ka 1 0.58 0.02
+Kd 1 0.58 0.02
+Ks 0.75 0.5 0.1
+Ns 100
+d 1.0
+illum 2
+
+newmtl StatusRed
+Ka 0.92 0.035 0.025
+Kd 0.92 0.035 0.025
+Ks 0.7 0.14 0.1
+Ns 100
+d 1.0
+illum 2
+
+newmtl TankPoly
+Ka 0.48 0.52 0.5
+Kd 0.48 0.52 0.5
+Ks 0.42 0.46 0.45
+Ns 95
+d 1.0
+illum 2
+
+newmtl TankEdge
+Ka 0.68 0.71 0.68
+Kd 0.68 0.71 0.68
+Ks 0.6 0.63 0.62
+Ns 125
+d 1.0
+illum 2
+
+newmtl TankInterior
+Ka 0.25 0.3 0.29
+Kd 0.25 0.3 0.29
+Ks 0.24 0.28 0.27
+Ns 65
+d 1.0
+illum 2
+
+newmtl LabelPlate
+Ka 0.82 0.83 0.79
+Kd 0.82 0.83 0.79
+Ks 0.32 0.34 0.33
+Ns 70
+d 1.0
+illum 2
+
+newmtl SightGlass
+Ka 0.2 0.55 0.58
+Kd 0.2 0.55 0.58
+Ks 0.55 0.75 0.78
+Ns 140
+d 1.0
+illum 2
+
+newmtl PipeSteel
+Ka 0.28 0.31 0.3
+Kd 0.28 0.31 0.3
+Ks 0.62 0.65 0.64
+Ns 155
+d 1.0
+illum 2
+
+newmtl ValveOrange
+Ka 0.9 0.23 0.025
+Kd 0.9 0.23 0.025
+Ks 0.58 0.3 0.08
+Ns 85
+d 1.0
+illum 2
+
+newmtl PumpBlue
+Ka 0.015 0.22 0.48
+Kd 0.015 0.22 0.48
+Ks 0.18 0.42 0.7
+Ns 115
+d 1.0
+illum 2
+
+newmtl MotorBlue
+Ka 0.025 0.19 0.38
+Kd 0.025 0.19 0.38
+Ks 0.16 0.36 0.58
+Ns 105
+d 1.0
+illum 2
+newmtl GratingGalv
+Ka 0.3 0.33 0.32
+Kd 0.3 0.33 0.32
+Ks 0.58 0.61 0.6
+Ns 145
+d 1.0
+illum 2
+
+newmtl FrameBlue
+Ka 0.015 0.17 0.35
+Kd 0.015 0.17 0.35
+Ks 0.12 0.35 0.58
+Ns 105
+d 1.0
+illum 2

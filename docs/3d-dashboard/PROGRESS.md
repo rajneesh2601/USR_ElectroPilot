@@ -2,10 +2,10 @@
 
 ## Current Phase
 
-Phase: Visual Continuation Phase 39 - Dashboard command state binding
-Status: Complete
-Started: 2026-08-27
-Completed: 2026-08-27
+Phase: Visual Continuation Phase 44 - SharpDX runtime view switch
+Status: In Progress
+Started: 2026-09-01
+Completed:
 
 ## Goal Reminder
 
@@ -319,35 +319,71 @@ Complete a client-ready WinForms .NET Framework 4.8.1 SCADA dashboard with one m
 - Visual verification: Host dashboard screenshot confirms the command row still renders after adding active-state styling.
 - Screenshot: `docs/3d-dashboard/screenshots/phase-39-command-state-binding.png`
 - Files changed: `USR_ElectroPilot/Controls/ScadaCommandButton.cs`, `USR_ElectroPilot/Controls/Plant3DHostControl.cs`, `docs/3d-dashboard/tools/Phase11RuntimeVerifier.cs`
+- Phase: Visual Continuation Phase 40 - SharpDX compatibility and real asset pipeline
+- Build result: Debug `bin\Real3DPhase40Debug\`; Release `bin\Real3DPhase40Release\` passed.
+- Runtime verification: `Phase11RuntimeVerifier` returned `PHASE11 PASS` after adding SharpDX package references and a compile-time compatibility probe.
+- Asset verification: `USR_ElectroPilot/Assets/Models/` exists with manifest documentation, but no approved OBJ/STL/FBX/converted model files are present yet.
+- Visual verification: Host dashboard screenshot confirms the current verified dashboard still renders after adding SharpDX dependencies; the production viewport remains classic Helix until imported model proof is complete.
+- Screenshot: `docs/3d-dashboard/screenshots/phase-40-sharpdx-asset-pipeline.png`
+- Files changed: `USR_ElectroPilot/USR_ElectroPilot.csproj`, `USR_ElectroPilot/packages.config`, `USR_ElectroPilot/ThreeD/RealModels/RealModelAssetManifest.cs`, `USR_ElectroPilot/Assets/Models/README.md`, `docs/3d-dashboard/REAL_3D_MIGRATION_TASKS.md`
+- Phase: Visual Continuation Phase 41 - Imported model loader fallback
+- Build result: Debug `bin\Real3DPhase41Debug\`; Release `bin\Real3DPhase41Release\` passed.
+- Runtime verification: `Phase11RuntimeVerifier` returned `PHASE11 PASS` after adding the loader.
+- Loader verification: Reflection probe returned `SharpDX=SharpDX; WpfSharpDX=HelixToolkit.Wpf.SharpDX; Assets=8; Loaded=0; Fallback=8`, proving the manifest detects all expected parts and missing model files fall back cleanly.
+- Visual verification: Host dashboard screenshot confirms the verified procedural fallback dashboard still renders after adding the imported-model loader.
+- Screenshot: `docs/3d-dashboard/screenshots/phase-41-imported-model-loader-fallback.png`
+- Files changed: `USR_ElectroPilot/Services/RealModelLoaderService.cs`, `USR_ElectroPilot/USR_ElectroPilot.csproj`, `docs/3d-dashboard/PROGRESS.md`
+- Phase: Visual Continuation Phase 42 - Real H1 asset import
+- Build result: Debug `bin\Real3DPhase42AssetDebug\`; Release `bin\Real3DPhase42AssetRelease\` passed with zero warnings and zero errors.
+- Runtime verification: `Phase11RuntimeVerifier` returned `PHASE11 PASS` after proving all four H1 parts load, remain centered as one machine, travel smoothly on X, lower gradually into the tank, lift before horizontal travel, and raise gradually above the rim.
+- Asset verification: `hoist_h1.obj`, `motor_gearbox.obj`, `plate_rack.obj`, and `hanging_plate.obj` load from `Assets\Models` with `Loaded=hoist_h1,motor_gearbox,plate_rack,hanging_plate; Missing=none; Unsupported=none; Failed=none`.
+- Visual verification: Front inspection render shows a separate beveled fabricated portal, rail bogies, attached finned travel motor/gearbox, vertical lift drive, moving inner frame, linked hangers, and twelve exposed PCB workpieces.
+- Screenshot: `docs/3d-dashboard/screenshots/phase-42-real-h1-imported.png`, `docs/3d-dashboard/screenshots/phase-42-real-h1-dashboard.png`
+- Files changed: `USR_ElectroPilot/Assets/Models/*`, `USR_ElectroPilot/Services/RealModelLoaderService.cs`, `USR_ElectroPilot/ThreeD/Views/Plant3DView.cs`, `docs/3d-dashboard/tools/GenerateRealH1Assets.cs`, `docs/3d-dashboard/tools/Phase11RuntimeVerifier.cs`, `docs/3d-dashboard/tools/PhaseScreenshotRunner.cs`
+- Phase: Visual Continuation Phase 43 - Real tank and plant assets
+- Build result: Debug `bin\Real3DPhase43Debug\`; Release `bin\Real3DPhase43Release\` passed with zero warnings and zero errors.
+- Runtime verification: `Phase11RuntimeVerifier` returned `PHASE11 PASS` after verifying 18 shared instances each of `tank_standard`, `pipe_manifold`, `pump`, and `walkway`; H1 motion and safe PLC behavior remain intact.
+- Dynamic verification: Tank selection, liquid level, and fault status refresh only the dynamic tank-state layer. They do not rebuild or reload the imported static plant geometry.
+- Asset verification: Real plant readiness reports `Loaded=tank_standard,pipe_manifold,pump,walkway; Missing=none; Unsupported=none; Failed=none`.
+- Visual verification: Close inspection render shows clean open tanks, beveled rims, external ribs, sight glasses, label panels, live status lamps, flanged twin manifolds, valve handwheels, separate pump volutes, finned motors, coupling guards, and open galvanized grating.
+- Screenshot: `docs/3d-dashboard/screenshots/phase-43-real-tanks-pumps.png`, `docs/3d-dashboard/screenshots/phase-43-real-plant-dashboard.png`
+- Files changed: `USR_ElectroPilot/Assets/Models/*`, `USR_ElectroPilot/ThreeD/Components/ImportedPlant3DBuilder.cs`, `USR_ElectroPilot/ThreeD/Components/TankDynamic3DBuilder.cs`, `USR_ElectroPilot/ThreeD/Views/Plant3DView.cs`, `docs/3d-dashboard/tools/GenerateRealH1Assets.cs`, `docs/3d-dashboard/tools/Phase11RuntimeVerifier.cs`, `docs/3d-dashboard/tools/PhaseScreenshotRunner.cs`
+- Phase: Visual Continuation Phase 44A - Equipment telemetry and readable diagnostics
+- Build result: Debug `bin\TelemetryP44AlarmsDebug\`; Release `bin\TelemetryP44AlarmsRelease\` passed.
+- Runtime verification: `Phase11RuntimeVerifier` returned `PHASE11 PASS` after checking camera-facing acid/process labels, typed motor/pump/valve/heater/rectifier telemetry, green/red motor feedback indicators, selected-equipment details, heartbeat/stale behavior, and deduplicated equipment alarm rules.
+- Visual verification: Dashboard captures confirm `T04 ACID` readability, motor state indicators, selected T04 Acid Dip values, `Data GOOD` heartbeat, and matching red fault/alarm presentation.
+- Screenshots: `docs/3d-dashboard/screenshots/phase-44-readable-acid-labels.png`, `docs/3d-dashboard/screenshots/phase-44-selected-equipment.png`, `docs/3d-dashboard/screenshots/phase-44-telemetry-heartbeat.png`, `docs/3d-dashboard/screenshots/phase-44-equipment-alarms.png`
+- Files changed: `USR_ElectroPilot/Models/EquipmentTelemetryModels.cs`, `USR_ElectroPilot/Models/PlantTelemetrySnapshot.cs`, `USR_ElectroPilot/Services/PlantTelemetryService.cs`, `USR_ElectroPilot/Services/EquipmentTelemetryAlarmService.cs`, `USR_ElectroPilot/Services/SimulatorService.cs`, `USR_ElectroPilot/Controls/Plant3DHostControl.cs`, `USR_ElectroPilot/Forms/MainForm.cs`, `USR_ElectroPilot/ThreeD/Components/TankDynamic3DBuilder.cs`, `USR_ElectroPilot/ThreeD/Views/Plant3DView.cs`, `docs/3d-dashboard/tools/Phase11RuntimeVerifier.cs`, `docs/3d-dashboard/tools/PhaseScreenshotRunner.cs`
 
 ## Current Work
 
-- Current task: Continue targeted dashboard behavior checks where command state or process visual state can drift from actual runtime data.
-- Files being edited: None.
-- Expected result: Continue targeted visual passes until the target dashboard match is stronger.
+- Current task: Phase 44 remains in progress. Equipment telemetry/readability work is verified; the production renderer still needs the SharpDX runtime view switch.
+- Phase 43 result: All 18 stations now use shared imported tank, manifold, pump/motor, and walkway assets. Liquid, status, labels, and selection remain data-driven visuals.
+- Asset source: The checked-in generator creates repeatable reference-matched OBJ/MTL plant assets. Customer-approved CAD assets can replace the same manifest filenames later without changing line layout or data bindings.
+- Remaining visual limitation: The production viewport still uses classic `HelixToolkit.Wpf`, so the imported machine remains a detailed industrial visualization rather than final SharpDX/PBR photoreal output.
 
 ## Verification
 
-- Last successful build: Debug `bin\CommandStateBindingDebug\`; Release `bin\CommandStateBindingRelease\`
-- Last run: `Phase11RuntimeVerifier.exe USR_ElectroPilot\bin\CommandStateBindingDebug` returned `PHASE11 PASS`.
+- Last successful build: Debug `bin\TelemetryP44AlarmsDebug\`; Release `bin\TelemetryP44AlarmsRelease\`
+- Last run: `Phase11RuntimeVerifier.exe USR_ElectroPilot\bin\TelemetryP44AlarmsDebug` returned `PHASE11 PASS` with imported asset, dynamic motion, telemetry quality, selected-equipment, alarm-rule, and safe PLC assertions.
 - Tests: Command-state-binding Debug build, Release build, runtime verifier, host screenshot runner.
-- Visual checks passed: Clean navigation, target-like header icon/status row, direct sidebar submenu entries for View/Tanks/Recipe/Settings, safe deferred view commands, command row enabled/active states bound to actual dashboard data, removed Plant Operations/Production/Engineering grouped menu, right-header account menu, hidden viewport camera commands, explicit Helix mouse rotate/pan/zoom/reset gestures, bottom plant command row, right-sidebar View All Alarms action, KPI cards with severity breakdown, alarm table, single H1 hoist dashboard state, 18 active main-line tanks, clear tank visibility without black rods blocking the view, reference-style tank labels/lamps/pumps/pipes/valves, smooth viewport-owned H1 horizontal motion, smooth lowering/lifting plate motion, enforced lift-before-horizontal-travel behavior, longer hoist service lower/lift transition timing, brighter industrial-yellow H1 portal, compact attached end-drive gearbox, connected horizontal finned motor, beam-aligned `USR H1 500KG` marking, side motor/drive cues, chain/guide details, tank-parallel carrier with vertical hanging work plates bound to hoist movement, raised plates clearing the tank rim, lowered/processing plates entering the tank, open H1 plate rack without solid covers, no rack cage hiding the plates, no black shadow pad below the H1 plates, one liquid surface per tank, and no nested inner tank wall panels.
+- Visual checks passed: Clean navigation, target-like header icon/status row, direct sidebar submenu entries for View/Tanks/Recipe/Settings, safe deferred view commands, command row enabled/active states bound to actual dashboard data, right-header account menu, explicit Helix mouse rotate/pan/zoom/reset gestures, bottom plant command row, KPI cards, alarm table, single imported H1, 18 imported tank stations, open tank tops, one dynamic liquid surface per tank, no nested inner tank walls, readable upper labels, live status lamps, external ribs and sight glasses, flanged manifolds, valves, detailed pump/motor assemblies, open grating, smooth H1 travel/lift motion, lift-before-travel gating, shared static model geometry, and dynamic level/status updates without static scene rebuilds.
 - Visual checks failed: None in Phase 11 runtime verification.
 
 ## Known Differences from Target
 
-- Difference: Current 3D scene is still procedural and not a photoreal imported plant asset.
-- Cause: The current verified implementation uses code-generated WPF Helix geometry.
-- Planned correction: Continue targeted asset-quality passes, or separately evaluate a verified SharpDX/PBR/asset workflow without changing the main WinForms app.
+- Difference: H1, tanks, manifolds, pumps and walkway are imported OBJ/MTL geometry, but the render is not yet photoreal PBR.
+- Cause: The active production viewport remains classic WPF Helix after the successful imported-asset proofs.
+- Planned correction: Phase 44 switches the verified runtime view to `HelixToolkit.Wpf.SharpDX` for PBR-capable materials, improved lighting and GPU rendering.
 - Difference: Left navigation now uses icon+label buttons, but the icons are simplified GDI line icons rather than exact target artwork.
 - Cause: Current implementation avoids adding a new icon/package dependency.
 - Planned correction: Later polish can replace GDI primitives with an approved icon set if required.
 - Difference: Full dashboard screenshot helper blocks with current WinForms/ElementHost capture mode.
 - Cause: `DrawToBitmap`/ElementHost capture path is unreliable in this environment.
 - Planned correction: Use successful Phase 1 shell screenshot and latest offscreen WPF viewport screenshots for final visual evidence; app builds verify WinForms code.
-- Difference: Current package is `HelixToolkit.Wpf`, not `HelixToolkit.Wpf.SharpDX`.
-- Cause: Earlier integration chose lower-risk classic WPF Helix.
-- Planned correction: Record as architecture gap; evaluate/pin compatible SharpDX package before DirectX migration.
+- Difference: SharpDX packages now compile, but the active production viewport still uses classic `HelixToolkit.Wpf`.
+- Cause: Phase 40 intentionally added compatibility groundwork only; Phase 42 now proves imported H1 files and dynamic transforms in the existing viewport.
+- Planned correction: Phase 44 now has the required imported H1 and static plant proof needed to begin the production viewport switch.
 
 ## PLC Status
 
@@ -358,9 +394,9 @@ Complete a client-ready WinForms .NET Framework 4.8.1 SCADA dashboard with one m
 
 ## Next Exact Actions
 
-1. Use `docs/3d-dashboard/screenshots/phase-39-command-state-binding.png` as latest dashboard command-state evidence.
-2. Keep the command-row invariant: button enabled/active styling must follow bound runtime data from real command handlers and services.
-3. Next visual pass should focus on optional close-up tank/hoist asset quality, richer brand/icon artwork, or target-state alarm examples if allowed.
+1. Start Phase 44 with a small `Viewport3DX` proof scene using the imported tank and H1 assets.
+2. Map the existing OBJ materials to SharpDX Phong/PBR materials without changing machine transforms or PLC/simulation bindings.
+3. Preserve classic Helix as a fallback until the SharpDX full-dashboard render and runtime verifier pass.
 4. For real plant commissioning, collect PLC protocol, tags/registers, scaling, data types, and write-permission rules before enabling writes.
 5. Keep the current single-line/single-H1 product direction unless the requirement changes.
 
@@ -368,3 +404,4 @@ Complete a client-ready WinForms .NET Framework 4.8.1 SCADA dashboard with one m
 
 - Full WinForms dashboard screenshot capture blocks in this environment; this does not block app builds.
 - Real PLC protocol/tag/register mappings remain unconfirmed, so PLC writes remain disabled by default.
+- Customer-approved manufacturing CAD is not available; the current H1 assets are reference-matched presentation models and use stable filenames so approved CAD can replace them later.

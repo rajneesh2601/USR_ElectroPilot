@@ -47,6 +47,9 @@
     <Reference Include="CommunityToolkit.Mvvm">
       <HintPath>..\packages\CommunityToolkit.Mvvm.8.3.2\lib\netstandard2.0\CommunityToolkit.Mvvm.dll</HintPath>
     </Reference>
+    <Reference Include="Cyotek.Drawing.BitmapFont">
+      <HintPath>..\packages\Cyotek.Drawing.BitmapFont.2.0.4\lib\net48\Cyotek.Drawing.BitmapFont.dll</HintPath>
+    </Reference>
     <Reference Include="HelixToolkit">
       <HintPath>..\packages\HelixToolkit.3.1.2\lib\net48\HelixToolkit.dll</HintPath>
     </Reference>
@@ -56,8 +59,14 @@
     <Reference Include="HelixToolkit.Maths">
       <HintPath>..\packages\HelixToolkit.Maths.3.1.2\lib\net48\HelixToolkit.Maths.dll</HintPath>
     </Reference>
+    <Reference Include="HelixToolkit.SharpDX">
+      <HintPath>..\packages\HelixToolkit.SharpDX.3.1.2\lib\net48\HelixToolkit.SharpDX.dll</HintPath>
+    </Reference>
     <Reference Include="HelixToolkit.Wpf">
       <HintPath>..\packages\HelixToolkit.Wpf.3.1.2\lib\net48\HelixToolkit.Wpf.dll</HintPath>
+    </Reference>
+    <Reference Include="HelixToolkit.Wpf.SharpDX">
+      <HintPath>..\packages\HelixToolkit.Wpf.SharpDX.3.1.2\lib\net48\HelixToolkit.Wpf.SharpDX.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Bcl.AsyncInterfaces">
       <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
@@ -71,6 +80,24 @@
     <Reference Include="netstandard" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="SharpDX">
+      <HintPath>..\packages\SharpDX.4.2.0\lib\net45\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.D3DCompiler">
+      <HintPath>..\packages\SharpDX.D3DCompiler.4.2.0\lib\net45\SharpDX.D3DCompiler.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct2D1">
+      <HintPath>..\packages\SharpDX.Direct2D1.4.2.0\lib\net45\SharpDX.Direct2D1.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct3D11">
+      <HintPath>..\packages\SharpDX.Direct3D11.4.2.0\lib\net45\SharpDX.Direct3D11.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct3D9">
+      <HintPath>..\packages\SharpDX.Direct3D9.4.2.0\lib\net45\SharpDX.Direct3D9.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.DXGI">
+      <HintPath>..\packages\SharpDX.DXGI.4.2.0\lib\net45\SharpDX.DXGI.dll</HintPath>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Data.SQLite">
       <HintPath>..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\lib\net46\System.Data.SQLite.dll</HintPath>
@@ -175,6 +202,7 @@
     <Compile Include="Helpers\UiHelper.cs" />
     <Compile Include="Models\AlarmModel.cs" />
     <Compile Include="Models\AuditLogModel.cs" />
+    <Compile Include="Models\EquipmentTelemetryModels.cs" />
     <Compile Include="Models\LoadModel.cs" />
     <Compile Include="Models\HoistStatusModel.cs" />
     <Compile Include="Models\HoistModel.cs" />
@@ -191,6 +219,7 @@
     <Compile Include="Models\UserModel.cs" />
     <Compile Include="Models\WagonModel.cs" />
     <Compile Include="Models\PlantStatusModel.cs" />
+    <Compile Include="Models\PlantTelemetrySnapshot.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Forms\SplashForm.cs">
@@ -284,16 +313,19 @@
     <Compile Include="Services\AlarmService.cs" />
     <Compile Include="Services\AuthService.cs" />
     <Compile Include="Services\DashboardService.cs" />
+    <Compile Include="Services\EquipmentTelemetryAlarmService.cs" />
     <Compile Include="Services\HoistStatusService.cs" />
     <Compile Include="Services\HoistService.cs" />
     <Compile Include="Services\IpConnectionClient.cs" />
     <Compile Include="Services\JobService.cs" />
     <Compile Include="Services\LoadService.cs" />
+    <Compile Include="Services\PlantTelemetryService.cs" />
     <Compile Include="Services\ProcessStepService.cs" />
     <Compile Include="Services\ProcessRecipeService.cs" />
     <Compile Include="Services\RecipeService.cs" />
     <Compile Include="Services\RectifierService.cs" />
     <Compile Include="Services\ReportService.cs" />
+    <Compile Include="Services\RealModelLoaderService.cs" />
     <Compile Include="Services\SafePlcAdapter.cs" />
     <Compile Include="Services\ScadaLayoutService.cs" />
     <Compile Include="Services\ShiftReportService.cs" />
@@ -303,12 +335,15 @@
     <Compile Include="Services\UserActivityService.cs" />
     <Compile Include="Services\WagonService.cs" />
     <Compile Include="ThreeD\Components\HoistRail3DBuilder.cs" />
+    <Compile Include="ThreeD\Components\ImportedPlant3DBuilder.cs" />
     <Compile Include="ThreeD\Components\IndustrialShape3DBuilder.cs" />
     <Compile Include="ThreeD\Components\LiftAssembly3DBuilder.cs" />
     <Compile Include="ThreeD\Components\PortalHoist3DBuilder.cs" />
     <Compile Include="ThreeD\Components\TankLine3DBuilder.cs" />
     <Compile Include="ThreeD\Components\Tank3DBuilder.cs" />
+    <Compile Include="ThreeD\Components\TankDynamic3DBuilder.cs" />
     <Compile Include="ThreeD\Materials\PlantMaterialLibrary.cs" />
+    <Compile Include="ThreeD\RealModels\RealModelAssetManifest.cs" />
     <Compile Include="ThreeD\Views\Plant3DView.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -335,6 +370,11 @@
     <None Include="App.config" />
     <None Include="packages.config" />
     <None Include="PROJECT_WORK_SUMMARY.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Models\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets" Condition="Exists('..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets')" />

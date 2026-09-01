@@ -24,6 +24,7 @@ namespace USR_ElectroPilot.Forms
         private readonly HoistService _hoistService = new HoistService();
         private readonly JobService _jobService = new JobService();
         private readonly ScadaLayoutService _scadaLayoutService = new ScadaLayoutService();
+        private readonly EquipmentTelemetryAlarmService _equipmentTelemetryAlarmService = new EquipmentTelemetryAlarmService();
         private readonly Dictionary<string, StatusCardControl> _statusCards = new Dictionary<string, StatusCardControl>();
         private readonly UserModel _sessionUser;
         private Plant3DHostControl _scadaOverview;
@@ -43,6 +44,8 @@ namespace USR_ElectroPilot.Forms
         private int _scadaTankRows = 1;
         private bool _processSecondTick;
         private int _liveRefreshTicks;
+        private long _equipmentTelemetrySequence;
+        private PlantTelemetrySnapshot _latestEquipmentTelemetry = PlantTelemetrySnapshot.Empty;
 
         public MainForm()
             : this(AppSession.CurrentUser)
@@ -790,6 +793,16 @@ namespace USR_ElectroPilot.Forms
             _scadaOverview.CanOperateTanks = CanOperatePlant();
             _scadaOverview.CanEngineerTanks = CanEngineer();
             ResizeScadaOverview(tanks);
+            _latestEquipmentTelemetry = _simulatorService.CreateEquipmentSnapshot(tanks, ++_equipmentTelemetrySequence, DateTime.UtcNow);
+            foreach (var alarm in _equipmentTelemetryAlarmService.Evaluate(
+                _latestEquipmentTelemetry,
+                DateTime.UtcNow,
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(3)))
+            {
+                _alarmService.RaiseAlarm(alarm.Source, alarm.Severity, alarm.Message);
+            }
+
             _scadaOverview.BindData(
                 tanks,
                 _wagonService.GetWagons(),
@@ -802,7 +815,8 @@ namespace USR_ElectroPilot.Forms
                 _remainingStepSeconds,
                 _autoMode,
                 _emergencyStop,
-                _scadaTankRows);
+                _scadaTankRows,
+                _latestEquipmentTelemetry);
             if (_selectedTank != null)
             {
                 _scadaOverview.SelectTank(_selectedTank.Id);

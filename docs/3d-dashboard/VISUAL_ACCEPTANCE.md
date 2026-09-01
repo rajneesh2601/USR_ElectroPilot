@@ -23,8 +23,8 @@
 | Right-header account menu | Pass | `phase-20-account-menu.png`, `Phase11RuntimeVerifier` | Account popup is code-verified, not visible in static screenshot | Operator header shows a dropdown cue and exposes Login Another / Logout only |
 | Machine viewport composition | Pass | `phase-13-round-geometry.png` | Procedural style, not photoreal asset | Full line is visible with tighter target framing |
 | Tank proportions and detail | Pass | `phase-14-nav-labels.png` | Simplified procedural tanks | Tanks include cylindrical outlet/pump cues and readable number labels |
-| Portal geometry | Pass | `phase-29-real-hoist-plates.png`, `phase-29-real-hoist-plates-close.png`, `Phase11RuntimeVerifier` | Procedural Helix model, not imported machine asset | H1 now has brighter yellow box-section beam, bolt cues, side drive/motor detail, lift guides, and chain details |
-| Plate carrier | Pass | `phase-29-real-hoist-plates.png`, `phase-29-real-hoist-plates-close.png`, `Phase11RuntimeVerifier` | Simplified procedural rack, not imported machine asset | Carrier remains tank-parallel and now carries individual vertical hanging work plates like the real hoist reference |
+| Portal geometry | Pass | `phase-42-real-h1-imported.png`, `Phase11RuntimeVerifier` | Imported presentation model; customer manufacturing CAD is not available | H1 uses separate imported beveled bridge, columns, end plates, gussets, bogies, wheels, bearings, bolts, cable tray, and drive assets |
+| Plate carrier | Pass | `phase-42-real-h1-imported.png`, `Phase11RuntimeVerifier` | Imported mid-detail boards; not a scanned customer rack | Imported inner frame carries linked hangers, clamps, copper bars, and twelve individual PCB workpieces |
 | Materials and lighting | Pass | `phase3-material-lighting.png` | Classic WPF Helix, not SharpDX PBR | Reusable material/light foundation is in place |
 | Walkway and supports | Pass | `phase-13-round-geometry.png` | Simplified grating/stairs | Guard rails now use round geometry |
 | Pumps and pipes | Pass | `phase-13-round-geometry.png` | Still procedural, not exact plant hardware | Cylindrical manifold, drops, valves, and pump bodies are visible |
@@ -34,9 +34,9 @@
 | Right-sidebar bottom action | Pass | `phase-19-menu-shell.png`, `Phase11RuntimeVerifier` | Button icon is simplified GDI artwork | Right sidebar includes fixed `View All Alarms` action like the target |
 | Spacing and alignment | Pass | `phase-11-runtime.png`, `phase13-lifecycle.png` | Procedural geometry remains less detailed than target image | Current layout and machine composition are stable |
 | Configured tank count | Pass | `phase-25-18-tanks.png`, `Phase11RuntimeVerifier`, SQLite query | Wider plant line is denser than earlier 10-tank evidence | Main-line default and existing database upgrade now enforce 18 active tanks |
-| Tank viewport clarity | Pass | `phase-26-clear-tank-view.png`, `Phase11RuntimeVerifier` | Structural detail is simpler after removing dark rods | Removed black rail cross ties and tank-top dark bars that blocked the view |
+| Tank viewport clarity | Pass | `phase-43-real-tanks-pumps.png`, `Phase11RuntimeVerifier` | Full 18-tank overview is necessarily dense | Imported tanks keep open tops and readable upper-front state panels without black tank-top rods |
 | Mouse viewport control | Pass | `Phase11RuntimeVerifier` | Controls are verified in code, not shown in a static screenshot | Helix viewport supports left-drag rotate, right/middle-drag pan, mouse-wheel zoom, zoom-around-cursor, rotate-around-click, double-click reset, and safe deferred view commands |
-| Reference tank styling | Pass | `phase-27-mouse-tank-style.png`, `Phase11RuntimeVerifier` | Still procedural geometry, not a photoreal imported tank asset | Tanks now use lighter grey shells, white two-line labels, round status lamps, grey pipes, blue pumps, and orange valves |
+| Reference tank styling | Pass | `phase-43-real-tanks-pumps.png`, `Phase11RuntimeVerifier` | Classic Helix materials remain less realistic than planned SharpDX/PBR | Imported stations include ribbed open shells, beveled rims, sight glasses, labels, live lamps, flanged manifolds, valves, pump volutes, finned motors and coupling guards |
 | Tank-parallel carrier binding | Pass | `phase-29-real-hoist-plates.png`, `phase-29-real-hoist-plates-close.png`, `Phase11RuntimeVerifier` | Close-up quality remains procedural | Verifier checks vertical plates are distributed along the tank-parallel carrier and confirms the rack X position moves with H1 |
 | Raised/lowered plate clearance | Pass | `phase-37-smooth-hoist-motion.png`, `phase-37-smooth-hoist-motion-close.png`, `Phase11RuntimeVerifier` | Procedural geometry remains simpler than a real imported hoist model | Verifier checks raised H1 plates clear the tank rim, Lowering/Processing plates enter the tank, and lowering/lifting do not jump instantly |
 | Smooth hoist motion | Pass | `phase-37-smooth-hoist-motion.png`, `phase-37-smooth-hoist-motion-close.png`, `Phase11RuntimeVerifier` | Motion smoothness is code-verified; static screenshot cannot show intermediate frames | H1 horizontal motion and lift Z interpolation are driven by the WPF viewport timer so view/camera changes do not stop process updates |
@@ -44,10 +44,10 @@
 | Command state binding | Pass | `phase-39-command-state-binding.png`, `Phase11RuntimeVerifier` | Static screenshot shows one state only; verifier checks multiple runtime binds | Command buttons now expose active styling and enabled/disabled state from actual bound runtime data for auto, active job, stop, emergency, and reset states |
 | Open exposed plate rack | Pass | `phase-31-open-plates-hoist-name.png`, `phase-31-open-plates-hoist-name-close.png`, `Phase11RuntimeVerifier` | Procedural rods and boards remain simpler than a real machine asset | Solid side-cover panels were removed so the green hanging work plates remain visible inside the open carrier |
 | Hoist name label | Pass | `phase-36-connected-hoist-motor-name.png`, `phase-36-connected-hoist-motor-name-close.png`, `Phase11RuntimeVerifier` | Uses application identifier and load-capacity cue instead of copying reference company text | H1 hoist now shows beam-aligned `USR H1 500KG` text |
-| Real hoist reference correction | Pass | `phase-32-real-hoist-match.png`, `phase-32-real-hoist-match-close.png`, `Phase11RuntimeVerifier` | Still procedural Helix geometry, not photoreal CAD/imported asset quality | Removed the silver carrier cage, exposed the hanging plates under the lift bar, and moved `USR H1` onto the yellow front beam |
+| Real hoist reference correction | Pass | `phase-42-real-h1-imported.png`, `Phase11RuntimeVerifier` | Classic WPF Helix materials remain less realistic than the planned SharpDX/PBR view | Complete imported H1 replaces the procedural fallback and preserves exposed boards, beam branding, attached motors, and correct travel/lift hierarchy |
 | No black plate shadow | Pass | `phase-33-no-plate-shadow.png`, `phase-33-no-plate-shadow-close.png`, `Phase11RuntimeVerifier` | Global floor/platform shadows remain outside the tank opening | Removed the black H1 shadow pad that appeared below the hanging plates |
-| Single tank opening | Pass | `phase-34-clean-tank-opening.png`, `phase-34-clean-tank-opening-close.png`, `Phase11RuntimeVerifier` | Procedural tank walls remain simplified | Removed duplicate liquid and inner wall panels so each tank reads as one open tank, not a tank inside a tank |
-| Hoist drive motor | Pass | `phase-36-connected-hoist-motor-name.png`, `phase-36-connected-hoist-motor-name-close.png`, `Phase11RuntimeVerifier` | Procedural motor remains simpler than imported CAD | H1 motor is compact, attached to the end gearbox, supported by yellow brackets, and no longer protrudes far outside the hoist body |
+| Single tank opening | Pass | `phase-43-real-tanks-pumps.png`, `Phase11RuntimeVerifier` | Imported presentation model rather than customer manufacturing CAD | Imported tank asset has one open shell and the dynamic layer provides exactly one liquid surface without inner liner walls |
+| Hoist drive motor | Pass | `phase-42-real-h1-imported.png`, `Phase11RuntimeVerifier` | Generated presentation asset rather than customer CAD | Imported motor asset includes attached mount, gearbox, coupling, shaft, finned body, fan cover, lift motor, drum, and gearbox bolts |
 
 ## Screenshots
 
@@ -561,3 +561,24 @@
 - Added active-state rendering to SCADA command buttons.
 - Bound command enabled/active state from live dashboard data so Auto, Manual, Start Job, Stop, Emergency Stop, and Reset reflect the actual process state after commands run.
 - Verifier now checks normal auto, active job, and emergency stop command-row states.
+
+## Visual Continuation Phase 42 Notes
+
+- Screenshot: `docs/3d-dashboard/screenshots/phase-42-real-h1-imported.png`
+- Full dashboard: `docs/3d-dashboard/screenshots/phase-42-real-h1-dashboard.png`
+- Build evidence: Debug `bin\Real3DPhase42AssetDebug\` and Release `bin\Real3DPhase42AssetRelease\` passed with zero warnings and errors.
+- Runtime evidence: `Phase11RuntimeVerifier` returned `PHASE11 PASS` with imported-asset readiness, geometry bounds, X travel, smooth lift, tank clearance, and lift-before-travel checks.
+- The complete H1 now loads from four independent OBJ assets instead of rendering the procedural fallback.
+- The imported model follows the real-machine reference with a wide yellow fabricated bridge, two rail columns, bogies, attached geared motors, moving inner frame, linked hangers, and twelve exposed PCB boards.
+- This phase proves the asset and animation hierarchy. Final photoreal material quality still depends on the Phase 44 SharpDX/PBR runtime switch and, ideally, customer-approved CAD/texture assets.
+
+## Visual Continuation Phase 43 Notes
+
+- Close screenshot: `docs/3d-dashboard/screenshots/phase-43-real-tanks-pumps.png`
+- Full dashboard: `docs/3d-dashboard/screenshots/phase-43-real-plant-dashboard.png`
+- Build evidence: Debug `bin\Real3DPhase43Debug\` and Release `bin\Real3DPhase43Release\` passed with zero warnings and errors.
+- Runtime evidence: `Phase11RuntimeVerifier` returned `PHASE11 PASS` with 18-instance asset counts, shared frozen geometry, one liquid surface per tank, dynamic level movement, dynamic fault-lamp binding, H1 motion, and safe PLC write blocking.
+- All stations now load separate imported tank, manifold, pump/motor, and walkway modules while preserving the configured 1.45-unit tank pitch.
+- Static imported geometry is shared rather than cloned 18 times. Liquid, label, selection and status visuals update independently without rebuilding the static plant scene.
+- The inspection render confirms clean open tanks, ribs, sight glasses, flanges, valves, detailed pump/motor assemblies and open service grating.
+- Final PBR material and lighting quality remains Phase 44 work under `HelixToolkit.Wpf.SharpDX`.

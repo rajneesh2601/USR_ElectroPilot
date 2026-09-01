@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -48,6 +49,7 @@ internal static class Phase11RuntimeVerifier
             VerifyHelixMouseControls();
             VerifyDashboardBindings();
             VerifyDashboardMenuShell();
+            VerifyEquipmentTelemetryContract();
             VerifySafePlcWriteGuard();
 
             Console.WriteLine("PHASE11 PASS");
@@ -71,6 +73,10 @@ internal static class Phase11RuntimeVerifier
         try
         {
             var tanks = CreateTanks(false);
+            var telemetry = new SimulatorService().CreateEquipmentSnapshot(tanks, 1, DateTime.UtcNow);
+            telemetry.Motors[9].CommandOn = true;
+            telemetry.Motors[9].RunFeedback = false;
+            telemetry.Motors[9].Fault = true;
             var hoist = new HoistModel
             {
                 HoistId = 1,
@@ -84,15 +90,19 @@ internal static class Phase11RuntimeVerifier
             };
             var hoists = new List<HoistModel> { hoist };
 
-            view.UpdatePlant(tanks, new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, 0, "Loading", 60, true, false);
+            view.UpdatePlant(tanks, new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, 0, "Loading", 60, true, false, telemetry);
             var staticBuilds = view.StaticSceneBuildCount;
             var hoistBuilds = view.HoistVisualBuildCount;
+            var tankDynamicBuilds = view.TankDynamicBuildCount;
+            AssertTrue(view.IsUsingImportedHoistAssets, "H1 should use the complete imported model set when all required assets are present.");
+            AssertContains(view.RealHoistAssetReadinessReport, "Loaded=hoist_h1,motor_gearbox,plate_rack,hanging_plate", "Real H1 readiness report should list all imported parts as loaded.");
+            AssertContains(view.RealHoistAssetReadinessReport, "Missing=none", "Real H1 should not report missing model parts.");
+            AssertContains(view.RealHoistAssetReadinessReport, "Failed=none", "Real H1 should not report failed model parts.");
+            VerifyImportedPlantAssets(view, tanks.Count);
+            VerifyReadableAcidTankLabel(view);
+            VerifyMotorStatusIndicators(view);
             VerifySingleTankOpening(view, tanks.Count);
-            VerifyParallelHangingPlateRackGeometry(view);
-            VerifyPlateRackHasNoSolidCover(view);
-            VerifyNoBlackPadBelowPlateRack(view);
-            VerifyHoistNameOnFrontBeam(view);
-            VerifyRealisticHoistDriveMotor(view);
+            VerifyImportedH1Assets(view);
             VerifyRaisedPlateRackClearsTankRim(view);
             var startPlateX = GetAveragePlateRackX(view);
 
@@ -105,11 +115,7 @@ internal static class Phase11RuntimeVerifier
 
             AssertEqual(staticBuilds, view.StaticSceneBuildCount, "Static scene rebuilt during hoist X movement.");
             AssertTrue(view.HoistVisualBuildCount > hoistBuilds, "Hoist visual layer did not refresh during movement.");
-            VerifyParallelHangingPlateRackGeometry(view);
-            VerifyPlateRackHasNoSolidCover(view);
-            VerifyNoBlackPadBelowPlateRack(view);
-            VerifyHoistNameOnFrontBeam(view);
-            VerifyRealisticHoistDriveMotor(view);
+            VerifyImportedH1Assets(view);
             VerifyRaisedPlateRackClearsTankRim(view);
             AssertTrue(GetAveragePlateRackX(view) > startPlateX + 2.0, "Hanging plate rack did not move with the H1 hoist X position.");
 
@@ -150,17 +156,333 @@ internal static class Phase11RuntimeVerifier
 
             view.SelectTank(5);
             view.UpdatePlant(tanks, new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, hoist.PositionIndex, "Processing", 30, true, false);
-            AssertEqual(staticBuilds + 1, view.StaticSceneBuildCount, "Tank selection did not rebuild the static highlight layer.");
+            AssertEqual(staticBuilds, view.StaticSceneBuildCount, "Tank selection should update the dynamic highlight without rebuilding imported static plant assets.");
+            AssertEqual(tankDynamicBuilds + 1, view.TankDynamicBuildCount, "Tank selection did not rebuild the dynamic tank-state layer.");
 
+            var initialLiquidZ = GetLeftmostLiquidSurfaceZ(view);
             tanks[0].CurrentLevelLiters += 25;
             view.UpdatePlant(tanks, new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, hoist.PositionIndex, "Processing", 30, true, false);
-            AssertEqual(staticBuilds + 2, view.StaticSceneBuildCount, "Tank liquid/value change did not rebuild the tank layer.");
+            AssertEqual(staticBuilds, view.StaticSceneBuildCount, "Tank liquid/value change rebuilt imported static plant assets.");
+            AssertEqual(tankDynamicBuilds + 2, view.TankDynamicBuildCount, "Tank liquid/value change did not refresh the dynamic tank-state layer.");
+            AssertTrue(GetLeftmostLiquidSurfaceZ(view) > initialLiquidZ, "Tank liquid surface did not move when the bound level changed.");
+
+            tanks[0].Status = "Fault";
+            view.UpdatePlant(tanks, new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, hoist.PositionIndex, "Processing", 30, true, false);
+            AssertEqual(staticBuilds, view.StaticSceneBuildCount, "Tank status change rebuilt imported static plant assets.");
+            AssertEqual(tankDynamicBuilds + 3, view.TankDynamicBuildCount, "Tank status change did not refresh the dynamic tank-state layer.");
+            AssertTrue(HasFaultLampAtLeftmostTank(view), "Tank fault status did not update the imported tank's dynamic status lamp.");
             VerifySingleTankOpening(view, tanks.Count);
         }
         finally
         {
             view.Dispose();
         }
+    }
+
+    private static void VerifyImportedPlantAssets(Plant3DView view, int expectedTankCount)
+    {
+        AssertTrue(view.IsUsingImportedPlantAssets, "Plant should use imported tank, manifold, pump, and walkway assets when the complete set is available.");
+        AssertContains(view.RealPlantAssetReadinessReport, "Loaded=tank_standard,pipe_manifold,pump,walkway", "Real plant readiness report should list all imported plant parts as loaded.");
+        AssertContains(view.RealPlantAssetReadinessReport, "Missing=none", "Real plant should not report missing model parts.");
+        AssertContains(view.RealPlantAssetReadinessReport, "Failed=none", "Real plant should not report failed model parts.");
+        AssertEqual(expectedTankCount, view.GetImportedPlantInstanceCount("tank_standard"), "Imported tank shell count should match the configured tank count.");
+        AssertEqual(expectedTankCount, view.GetImportedPlantInstanceCount("pipe_manifold"), "Imported manifold module count should match the configured tank count.");
+        AssertEqual(expectedTankCount, view.GetImportedPlantInstanceCount("pump"), "Imported pump/motor count should match the configured tank count.");
+        AssertEqual(expectedTankCount, view.GetImportedPlantInstanceCount("walkway"), "Imported walkway module count should match the configured tank count.");
+        AssertTrue(view.TankDynamicBuildCount > 0, "Imported tanks should have a separate dynamic liquid/status layer.");
+        VerifyStaticPlantGeometryIsShared(view, expectedTankCount);
+    }
+
+    private static void VerifyStaticPlantGeometryIsShared(Plant3DView view, int expectedTankCount)
+    {
+        var contentCounts = new Dictionary<Model3D, int>();
+        foreach (var visual in GetViewport(view).Children)
+        {
+            var modelVisual = visual as ModelVisual3D;
+            if (modelVisual == null || modelVisual.Content == null)
+            {
+                continue;
+            }
+
+            int count;
+            contentCounts.TryGetValue(modelVisual.Content, out count);
+            contentCounts[modelVisual.Content] = count + 1;
+        }
+
+        var sharedPlantPartCount = 0;
+        foreach (var count in contentCounts.Values)
+        {
+            if (count == expectedTankCount)
+            {
+                sharedPlantPartCount++;
+            }
+        }
+
+        AssertTrue(sharedPlantPartCount >= 4, "Imported tank, manifold, pump, and walkway meshes should be shared across the configured tank instances.");
+    }
+
+    private static void VerifyReadableAcidTankLabel(Plant3DView view)
+    {
+        foreach (var visual in GetViewport(view).Children)
+        {
+            var label = visual as BillboardTextVisual3D;
+            if (label == null || label.Text == null || label.Text.IndexOf("ACID", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                continue;
+            }
+
+            AssertContains(label.Text, "T04", "Acid label should include its two-digit tank number.");
+            AssertTrue(label.FontSize >= 12, "Acid label text should remain readable at the dashboard camera distance.");
+            AssertTrue(label.Width >= 0.5 && label.Height >= 0.2, "Acid label billboard should have a readable camera-facing area.");
+            AssertTrue(label.Background != null && label.Background != System.Windows.Media.Brushes.Transparent, "Acid label should use a high-contrast background.");
+            return;
+        }
+
+        throw new InvalidOperationException("Missing camera-facing Acid Dip tank label.");
+    }
+
+    private static void VerifyMotorStatusIndicators(Plant3DView view)
+    {
+        BillboardTextVisual3D running = null;
+        BillboardTextVisual3D fault = null;
+        foreach (var visual in GetViewport(view).Children)
+        {
+            var label = visual as BillboardTextVisual3D;
+            if (label == null)
+            {
+                continue;
+            }
+
+            if (string.Equals(label.Text, "M RUN", StringComparison.Ordinal))
+            {
+                running = label;
+            }
+            else if (string.Equals(label.Text, "M FAULT", StringComparison.Ordinal))
+            {
+                fault = label;
+            }
+        }
+
+        AssertTrue(running != null, "Running motor should have a green camera-facing status indicator.");
+        AssertTrue(fault != null, "Faulted motor should have a red camera-facing status indicator.");
+        AssertTrue(running.Position.Y < -1.3 && fault.Position.Y < -1.3, "Motor indicators should stay anchored beside the front pump/motor row.");
+        AssertTrue(running.Background != null && fault.Background != null, "Motor status indicators should use readable high-contrast backgrounds.");
+    }
+
+    private static void VerifyEquipmentTelemetryContract()
+    {
+        var now = DateTime.UtcNow;
+        var runningMotor = new MotorTelemetryModel
+        {
+            EquipmentId = "M-T04-P01",
+            TankNo = 4,
+            Name = "Tank 04 circulation motor",
+            CommandOn = true,
+            RunFeedback = true,
+            CurrentAmps = 7.4,
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var stoppedPump = new PumpTelemetryModel
+        {
+            EquipmentId = "P-T04-01",
+            TankNo = 4,
+            Name = "Tank 04 circulation pump",
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var mismatchedValve = new ValveTelemetryModel
+        {
+            EquipmentId = "V-T04-01",
+            TankNo = 4,
+            Name = "Tank 04 inlet valve",
+            CommandOn = true,
+            RunFeedback = false,
+            OpenCommand = true,
+            OpenFeedback = false,
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var trippedHeater = new HeaterTelemetryModel
+        {
+            EquipmentId = "H-T04-01",
+            TankNo = 4,
+            Name = "Tank 04 heater",
+            CommandOn = true,
+            OverTemperature = true,
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var staleRectifier = new RectifierTelemetryModel
+        {
+            EquipmentId = "R-T05-01",
+            TankNo = 5,
+            Name = "Tank 05 rectifier",
+            CommandOn = true,
+            RunFeedback = true,
+            LastUpdatedUtc = now.AddSeconds(-20),
+            Quality = TelemetryQuality.Good
+        };
+
+        var provider = new SimulationTelemetryProvider();
+        provider.Publish(new PlantTelemetrySnapshot(
+            1,
+            now,
+            new[] { runningMotor },
+            new[] { stoppedPump },
+            new[] { mismatchedValve },
+            new[] { trippedHeater },
+            new[] { staleRectifier }));
+
+        var snapshot = provider.GetLatestSnapshot();
+        AssertEqual(1L, snapshot.Sequence, "Simulation telemetry provider did not retain the latest sequence.");
+        AssertEqual(1, snapshot.Motors.Count, "Motor telemetry was not retained in the plant snapshot.");
+        AssertEqual(1, snapshot.Pumps.Count, "Pump telemetry was not retained in the plant snapshot.");
+        AssertEqual(1, snapshot.Valves.Count, "Valve telemetry was not retained in the plant snapshot.");
+        AssertEqual(1, snapshot.Heaters.Count, "Heater telemetry was not retained in the plant snapshot.");
+        AssertEqual(1, snapshot.Rectifiers.Count, "Rectifier telemetry was not retained in the plant snapshot.");
+
+        var staleAfter = TimeSpan.FromSeconds(5);
+        AssertEqual(EquipmentOperatingState.Running, EquipmentTelemetryStateResolver.Resolve(runningMotor, now, staleAfter), "Confirmed motor feedback should resolve to Running.");
+        AssertEqual(EquipmentOperatingState.Stopped, EquipmentTelemetryStateResolver.Resolve(stoppedPump, now, staleAfter), "Healthy pump without feedback should resolve to Stopped.");
+        AssertEqual(EquipmentOperatingState.Warning, EquipmentTelemetryStateResolver.Resolve(mismatchedValve, now, staleAfter), "Valve command/feedback mismatch should resolve to Warning.");
+        AssertEqual(EquipmentOperatingState.Fault, EquipmentTelemetryStateResolver.Resolve(trippedHeater, now, staleAfter), "Heater over-temperature should resolve to Fault.");
+            AssertEqual(EquipmentOperatingState.Stale, EquipmentTelemetryStateResolver.Resolve(staleRectifier, now, staleAfter), "Old rectifier telemetry should resolve to Stale.");
+
+        VerifyEquipmentAlarmRules(now);
+    }
+
+    private static void VerifyEquipmentAlarmRules(DateTime now)
+    {
+        var startFailure = new MotorTelemetryModel
+        {
+            EquipmentId = "M-T01-P01",
+            CommandOn = true,
+            RunFeedback = false,
+            CommandChangedAtUtc = now.AddSeconds(-5),
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var overload = new MotorTelemetryModel
+        {
+            EquipmentId = "M-T02-P01",
+            CommandOn = true,
+            RunFeedback = false,
+            Overload = true,
+            CommandChangedAtUtc = now,
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var local = new MotorTelemetryModel
+        {
+            EquipmentId = "M-T03-P01",
+            IsLocalMode = true,
+            LastUpdatedUtc = now,
+            Quality = TelemetryQuality.Good
+        };
+        var staleMotor = new MotorTelemetryModel
+        {
+            EquipmentId = "M-T04-P01",
+            LastUpdatedUtc = now.AddSeconds(-10),
+            Quality = TelemetryQuality.Good
+        };
+        var snapshot = new PlantTelemetrySnapshot(
+            3,
+            now,
+            new[] { startFailure, overload, local, staleMotor },
+            null,
+            null,
+            null,
+            null);
+        var evaluator = new EquipmentTelemetryAlarmService();
+        var alarms = evaluator.Evaluate(snapshot, now, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(3));
+        AssertEqual(4, alarms.Count, "Equipment alarm rules should produce one alarm for each distinct failure mode.");
+        AssertTrue(alarms.Any(a => a.Message.IndexOf("failed to start", StringComparison.OrdinalIgnoreCase) >= 0), "Missing motor start-failure alarm.");
+        AssertTrue(alarms.Any(a => a.Message.IndexOf("overload", StringComparison.OrdinalIgnoreCase) >= 0), "Missing motor overload alarm.");
+        AssertTrue(alarms.Any(a => a.Message.IndexOf("local mode", StringComparison.OrdinalIgnoreCase) >= 0), "Missing motor local-mode alarm.");
+        AssertTrue(alarms.Any(a => a.Message.IndexOf("stale", StringComparison.OrdinalIgnoreCase) >= 0), "Missing stale motor feedback alarm.");
+        AssertEqual(alarms.Count, alarms.Select(a => a.Source + "|" + a.Message).Distinct(StringComparer.OrdinalIgnoreCase).Count(), "Equipment alarm candidates should be deduplicated by source and message.");
+
+        var communicationAlarm = evaluator.Evaluate(
+            new PlantTelemetrySnapshot(4, now.AddSeconds(-10), snapshot.Motors, null, null, null, null),
+            now,
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(3));
+        AssertEqual(1, communicationAlarm.Count, "A stale plant snapshot should suppress individual equipment alarms.");
+        AssertContains(communicationAlarm[0].Message, "heartbeat is stale", "Missing plant communication stale alarm.");
+    }
+
+    private static double GetLeftmostLiquidSurfaceZ(Plant3DView view)
+    {
+        BoxVisual3D leftmost = null;
+        foreach (var visual in GetViewport(view).Children)
+        {
+            var box = visual as BoxVisual3D;
+            if (box == null || !IsLiquidMaterial(box.Material))
+            {
+                continue;
+            }
+
+            if (leftmost == null || box.Center.X < leftmost.Center.X)
+            {
+                leftmost = box;
+            }
+        }
+
+        if (leftmost == null)
+        {
+            throw new InvalidOperationException("No dynamic tank liquid surface found.");
+        }
+
+        return leftmost.Center.Z;
+    }
+
+    private static bool HasFaultLampAtLeftmostTank(Plant3DView view)
+    {
+        SphereVisual3D leftmost = null;
+        foreach (var visual in GetViewport(view).Children)
+        {
+            var sphere = visual as SphereVisual3D;
+            if (sphere == null || sphere.Radius < 0.045 || sphere.Radius > 0.06)
+            {
+                continue;
+            }
+
+            if (leftmost == null || sphere.Center.X < leftmost.Center.X)
+            {
+                leftmost = sphere;
+            }
+        }
+
+        return leftmost != null && object.ReferenceEquals(leftmost.Material, PlantMaterialLibrary.StatusFault);
+    }
+
+    private static bool IsLiquidMaterial(System.Windows.Media.Media3D.Material material)
+    {
+        return object.ReferenceEquals(material, PlantMaterialLibrary.LiquidBlue) ||
+            object.ReferenceEquals(material, PlantMaterialLibrary.LiquidGreen) ||
+            object.ReferenceEquals(material, PlantMaterialLibrary.LiquidBrown);
+    }
+
+    private static void VerifyImportedH1Assets(Plant3DView view)
+    {
+        var portal = view.GetImportedHoistPartBounds("hoist_h1");
+        var motor = view.GetImportedHoistPartBounds("motor_gearbox");
+        var rack = view.GetImportedHoistPartBounds("plate_rack");
+        var plates = view.GetImportedHoistPartBounds("hanging_plate");
+
+        AssertTrue(!portal.IsEmpty && portal.SizeY > 2.8 && portal.SizeZ > 1.1, "Imported H1 portal should have the reference-style full-width fabricated frame.");
+        AssertTrue(!motor.IsEmpty && motor.SizeY > 1.8 && motor.SizeZ > 0.7, "Imported H1 should include separate travel and vertical lift motor geometry.");
+        AssertTrue(!rack.IsEmpty && rack.SizeY > 1.8 && rack.SizeZ > 0.4, "Imported H1 should include the mechanically connected moving lift frame and carrier.");
+        AssertTrue(!plates.IsEmpty && plates.SizeY > 1.5 && plates.SizeX > 0.4 && plates.SizeZ > 0.7, "Imported H1 should include a distributed rack of vertical PCB workpieces.");
+
+        var portalCenterX = portal.X + portal.SizeX / 2.0;
+        var motorCenterX = motor.X + motor.SizeX / 2.0;
+        var rackCenterX = rack.X + rack.SizeX / 2.0;
+        var plateCenterX = plates.X + plates.SizeX / 2.0;
+        AssertTrue(Math.Abs(motorCenterX - portalCenterX) < 0.4, "Imported motor assembly should stay attached to the H1 portal.");
+        AssertTrue(Math.Abs(rackCenterX - portalCenterX) < 0.4, "Imported lift frame should stay centered inside the H1 portal.");
+        AssertTrue(Math.Abs(plateCenterX - rackCenterX) < 0.2, "Imported PCB load should stay bound to its carrier.");
     }
 
     private static void VerifyMoveTargetWaitsForRaisedRack(Plant3DView view, List<TankModel> tanks, HoistModel hoist, List<HoistModel> hoists)
@@ -241,7 +563,7 @@ internal static class Phase11RuntimeVerifier
                 continue;
             }
 
-            if (object.ReferenceEquals(box.Material, PlantMaterialLibrary.Liquid) && box.Height <= 0.06)
+            if (IsLiquidMaterial(box.Material) && box.Height <= 0.06)
             {
                 liquidSurfaceCount++;
             }
@@ -386,6 +708,13 @@ internal static class Phase11RuntimeVerifier
 
     private static void VerifyRaisedPlateRackClearsTankRim(Plant3DView view)
     {
+        if (view.IsUsingImportedHoistAssets)
+        {
+            var bounds = view.GetImportedHoistPartBounds("hanging_plate");
+            AssertTrue(!bounds.IsEmpty && bounds.Z > 1.05, "Raised imported H1 plates should clear the tank rim instead of staying inside the tank.");
+            return;
+        }
+
         var minBottom = double.MaxValue;
         foreach (var visual in GetViewport(view).Children)
         {
@@ -403,6 +732,13 @@ internal static class Phase11RuntimeVerifier
 
     private static void VerifyLoweredPlateRackEntersTank(Plant3DView view)
     {
+        if (view.IsUsingImportedHoistAssets)
+        {
+            var bounds = view.GetImportedHoistPartBounds("hanging_plate");
+            AssertTrue(!bounds.IsEmpty && bounds.Z < 0.55, "Lowered imported H1 plates should reach into the tank liquid area.");
+            return;
+        }
+
         var maxTop = double.MinValue;
         var minBottom = double.MaxValue;
         foreach (var visual in GetViewport(view).Children)
@@ -423,6 +759,17 @@ internal static class Phase11RuntimeVerifier
 
     private static double GetAveragePlateRackX(Plant3DView view)
     {
+        if (view.IsUsingImportedHoistAssets)
+        {
+            var bounds = view.GetImportedHoistPartBounds("hanging_plate");
+            if (bounds.IsEmpty)
+            {
+                throw new InvalidOperationException("No imported plate rack geometry found.");
+            }
+
+            return bounds.X + bounds.SizeX / 2.0;
+        }
+
         var count = 0;
         var total = 0.0;
         foreach (var visual in GetViewport(view).Children)
@@ -447,6 +794,17 @@ internal static class Phase11RuntimeVerifier
 
     private static double GetLowestPlateRackBottom(Plant3DView view)
     {
+        if (view.IsUsingImportedHoistAssets)
+        {
+            var bounds = view.GetImportedHoistPartBounds("hanging_plate");
+            if (bounds.IsEmpty)
+            {
+                throw new InvalidOperationException("No imported plate rack geometry found.");
+            }
+
+            return bounds.Z;
+        }
+
         var minBottom = double.MaxValue;
         foreach (var visual in GetViewport(view).Children)
         {
@@ -539,7 +897,9 @@ internal static class Phase11RuntimeVerifier
                 }
             };
 
-            control.BindData(tanks, new List<WagonModel>(), new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, 4, "Copper", 42, true, false, 1);
+            var telemetry = new SimulatorService().CreateEquipmentSnapshot(tanks, 1, DateTime.UtcNow);
+            control.BindData(tanks, new List<WagonModel>(), new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, 4, "Copper", 42, true, false, 1, telemetry);
+            control.SelectTank(4);
 
             AssertContains(GetLabel(control, "_plantStateLabel").Text, "Normal", "Plant normal state not bound.");
             AssertEqual("18", GetLabel(control, "_totalTankValue").Text, "Total tank count not bound.");
@@ -547,12 +907,37 @@ internal static class Phase11RuntimeVerifier
             AssertContains(GetLabel(control, "_hoistPositionValue").Text, "Tank 05", "Hoist position not bound.");
             AssertContains(GetLabel(control, "_currentStepValue").Text, "Copper", "Current process step not bound.");
             AssertContains(GetLabel(control, "_currentStepValue").Text, "42s", "Remaining process time not bound.");
+            AssertContains(GetLabel(control, "_selectedEquipmentTitle").Text, "T04", "Selected equipment panel did not bind the tank number.");
+            AssertContains(GetLabel(control, "_selectedEquipmentTitle").Text, "Acid", "Selected equipment panel did not bind the chemical name.");
+            AssertContains(GetLabel(control, "_selectedLevelTemperatureValue").Text, "Temp", "Selected equipment panel did not bind temperature.");
+            AssertContains(GetLabel(control, "_selectedElectricalValue").Text, "V", "Selected equipment panel did not bind electrical values.");
+            AssertContains(GetLabel(control, "_selectedMotorValue").Text, "RUNNING", "Selected equipment panel did not bind confirmed motor feedback.");
+            AssertContains(GetLabel(control, "_selectedQualityValue").Text, "GOOD", "Selected equipment panel did not bind telemetry quality.");
+            AssertContains(GetLabel(control, "_communicationLabel").Text, "GOOD", "Telemetry heartbeat did not report healthy data.");
+            AssertContains(GetLabel(control, "_communicationLabel").Text, "#1", "Telemetry heartbeat did not report the snapshot sequence.");
             AssertEqual("0", GetLabel(control, "_activeAlarmValue").Text, "Active alarm count should be zero in normal reference state.");
             AssertCommandState(control, "Auto", true, true);
             AssertCommandState(control, "Manual", true, false);
             AssertCommandState(control, "Start Job", true, false);
             AssertCommandState(control, "Stop", true, false);
             AssertCommandState(control, "Emergency Stop", true, false);
+
+            foreach (var motor in telemetry.Motors)
+            {
+                motor.LastUpdatedUtc = DateTime.UtcNow.AddSeconds(-10);
+            }
+            var staleTelemetry = new PlantTelemetrySnapshot(
+                2,
+                DateTime.UtcNow.AddSeconds(-10),
+                telemetry.Motors,
+                telemetry.Pumps,
+                telemetry.Valves,
+                telemetry.Heaters,
+                telemetry.Rectifiers);
+            control.BindData(tanks, new List<WagonModel>(), new List<ProcessStepModel>(), hoists, new List<JobModel>(), null, 4, "Copper", 42, true, false, 1, staleTelemetry);
+            control.SelectTank(4);
+            AssertContains(GetLabel(control, "_communicationLabel").Text, "STALE", "Old telemetry snapshot should change the heartbeat to STALE.");
+            AssertContains(GetLabel(control, "_selectedMotorValue").Text, "STALE", "Old motor feedback should not remain green/running in the selected equipment panel.");
 
             var activeJobs = new List<JobModel>
             {
@@ -688,8 +1073,8 @@ internal static class Phase11RuntimeVerifier
                 Id = i,
                 LineId = 1,
                 TankNo = i,
-                Name = i == 5 ? "Copper" : "Process " + i,
-                ChemicalName = i == 5 ? "Copper" : "Process",
+                Name = i == 4 ? "Acid Dip" : i == 5 ? "Copper" : "Process " + i,
+                ChemicalName = i == 4 ? "Acid Dip" : i == 5 ? "Copper" : "Process",
                 CapacityLiters = 1000,
                 CurrentLevelLiters = i == 8 ? 840 : 750,
                 TemperatureCelsius = 30 + i,

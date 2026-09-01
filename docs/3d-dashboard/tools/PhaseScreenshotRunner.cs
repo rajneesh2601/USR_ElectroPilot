@@ -6,9 +6,11 @@ using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 using USR_ElectroPilot.Controls;
 using USR_ElectroPilot.Forms;
 using USR_ElectroPilot.Models;
+using USR_ElectroPilot.Services;
 using USR_ElectroPilot.ThreeD.Views;
 
 internal static class PhaseScreenshotRunner
@@ -51,9 +53,23 @@ internal static class PhaseScreenshotRunner
             IsActive = true
         };
 
+        if (args.Length >= 3 && string.Equals(args[2], "h1", StringComparison.OrdinalIgnoreCase))
+        {
+            SaveWpfDashboard(screenshotPath, true, false);
+            Console.WriteLine("Screenshot saved: " + screenshotPath);
+            return 0;
+        }
+
+        if (args.Length >= 3 && string.Equals(args[2], "tank", StringComparison.OrdinalIgnoreCase))
+        {
+            SaveWpfDashboard(screenshotPath, false, true);
+            Console.WriteLine("Screenshot saved: " + screenshotPath);
+            return 0;
+        }
+
         if (args.Length >= 3 && string.Equals(args[2], "wpf", StringComparison.OrdinalIgnoreCase))
         {
-            SaveWpfDashboard(screenshotPath);
+            SaveWpfDashboard(screenshotPath, false, false);
             Console.WriteLine("Screenshot saved: " + screenshotPath);
             return 0;
         }
@@ -102,7 +118,7 @@ internal static class PhaseScreenshotRunner
         return 0;
     }
 
-    private static void SaveWpfDashboard(string screenshotPath)
+    private static void SaveWpfDashboard(string screenshotPath, bool focusH1, bool focusTank)
     {
         var view = new Plant3DView
         {
@@ -119,7 +135,7 @@ internal static class PhaseScreenshotRunner
                 LineId = 1,
                 TankNo = i,
                 Name = "T" + i,
-                ChemicalName = i == 5 ? "Copper" : "Process",
+                ChemicalName = i == 4 ? "Acid Dip" : i == 5 ? "Copper" : "Process",
                 CapacityLiters = 1000,
                 CurrentLevelLiters = i == 8 ? 840 : 750,
                 TemperatureCelsius = 30 + i,
@@ -155,7 +171,33 @@ internal static class PhaseScreenshotRunner
             "Copper",
             0,
             true,
-            false);
+            false,
+            new SimulatorService().CreateEquipmentSnapshot(tanks, 1, DateTime.UtcNow));
+
+        if (focusH1)
+        {
+            var viewportField = typeof(Plant3DView).GetField("_viewport", BindingFlags.Instance | BindingFlags.NonPublic);
+            var viewport = (HelixToolkit.Wpf.HelixViewport3D)viewportField.GetValue(view);
+            var target = new Point3D(-6.525, 0, 1.75);
+            var position = new Point3D(-12.9, -0.55, 3.65);
+            viewport.Camera = new PerspectiveCamera(position, target - position, new Vector3D(0, 0, 1), 42)
+            {
+                NearPlaneDistance = 0.05,
+                FarPlaneDistance = 100
+            };
+        }
+        else if (focusTank)
+        {
+            var viewportField = typeof(Plant3DView).GetField("_viewport", BindingFlags.Instance | BindingFlags.NonPublic);
+            var viewport = (HelixToolkit.Wpf.HelixViewport3D)viewportField.GetValue(view);
+            var target = new Point3D(-2.175, -0.28, 0.48);
+            var position = new Point3D(-5.45, -6.35, 2.75);
+            viewport.Camera = new PerspectiveCamera(position, target - position, new Vector3D(0, 0, 1), 43)
+            {
+                NearPlaneDistance = 0.05,
+                FarPlaneDistance = 100
+            };
+        }
 
         view.Measure(new System.Windows.Size(view.Width, view.Height));
         view.Arrange(new System.Windows.Rect(0, 0, view.Width, view.Height));
@@ -184,6 +226,7 @@ internal static class PhaseScreenshotRunner
             control.CanEngineerTanks = true;
 
             var tanks = CreateReferenceTanks();
+            tanks[9].Status = "Fault";
             var hoists = new System.Collections.Generic.List<HoistModel>
             {
                 new HoistModel
@@ -211,7 +254,9 @@ internal static class PhaseScreenshotRunner
                 42,
                 true,
                 false,
-                1);
+                1,
+                new SimulatorService().CreateEquipmentSnapshot(tanks, 1, DateTime.UtcNow));
+            control.SelectTank(4);
 
             control.CreateControl();
             control.PerformLayout();
@@ -241,7 +286,7 @@ internal static class PhaseScreenshotRunner
                 LineId = 1,
                 TankNo = i,
                 Name = "T" + i,
-                ChemicalName = i == 5 ? "Copper" : "Process",
+                ChemicalName = i == 4 ? "Acid Dip" : i == 5 ? "Copper" : "Process",
                 CapacityLiters = 1000,
                 CurrentLevelLiters = i == 8 ? 840 : 750,
                 TemperatureCelsius = 30 + i,

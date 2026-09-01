@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -7,9 +8,12 @@ using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using HelixToolkit.Wpf;
+using USR_ElectroPilot.Helpers;
 using USR_ElectroPilot.ThreeD.Components;
 using USR_ElectroPilot.ThreeD.Materials;
 using USR_ElectroPilot.Models;
+using USR_ElectroPilot.Services;
+using USR_ElectroPilot.ThreeD.RealModels;
 
 namespace USR_ElectroPilot.ThreeD.Views
 {
@@ -35,12 +39,46 @@ namespace USR_ElectroPilot.ThreeD.Views
         private double _targetHoistPositionIndex;
         private double _visualLiftProgress;
         private double _targetLiftProgress;
+        private readonly RealModelAssetManifest _realModelManifest = new RealModelAssetManifest();
+        private readonly RealModelLoaderService _realModelLoader = new RealModelLoaderService();
+        private Dictionary<string, RealModelLoadResult> _realHoistAssets = new Dictionary<string, RealModelLoadResult>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ModelVisual3D> _importedHoistVisuals = new Dictionary<string, ModelVisual3D>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, RealModelLoadResult> _realPlantAssets = new Dictionary<string, RealModelLoadResult>(StringComparer.OrdinalIgnoreCase);
+        private ImportedPlant3DResult _importedPlantLine;
+        private readonly List<Visual3D> _tankDynamicVisuals = new List<Visual3D>();
+        private string _realHoistAssetKey;
+        private string _realPlantAssetKey;
+        private string _tankDynamicSceneKey;
+        private PlantTelemetrySnapshot _currentTelemetrySnapshot = PlantTelemetrySnapshot.Empty;
         private const double HoistPositionAnimationStep = 0.12;
         private const double LiftAnimationStep = 0.04;
         private const double AnimationEpsilon = 0.0001;
 
         public int StaticSceneBuildCount { get; private set; }
         public int HoistVisualBuildCount { get; private set; }
+        public int TankDynamicBuildCount { get; private set; }
+        public bool IsUsingImportedHoistAssets { get; private set; }
+        public bool IsUsingImportedPlantAssets { get; private set; }
+        public string RealHoistAssetReadinessReport { get; private set; }
+        public string RealPlantAssetReadinessReport { get; private set; }
+
+        public int GetImportedPlantInstanceCount(string key)
+        {
+            return _importedPlantLine == null ? 0 : _importedPlantLine.GetInstanceCount(key);
+        }
+
+        public Rect3D GetImportedHoistPartBounds(string key)
+        {
+            ModelVisual3D visual;
+            if (string.IsNullOrWhiteSpace(key) || !_importedHoistVisuals.TryGetValue(key, out visual) || visual.Content == null)
+            {
+                return Rect3D.Empty;
+            }
+
+            return visual.Transform == null
+                ? visual.Content.Bounds
+                : visual.Transform.TransformBounds(visual.Content.Bounds);
+        }
 
         public event EventHandler<int> TankSelected;
 
@@ -85,6 +123,9 @@ namespace USR_ElectroPilot.ThreeD.Views
             _animationTimer.Stop();
             _animationTimer.Tick -= AnimationTimer_Tick;
             _viewport.Children.Clear();
+            _tankDynamicVisuals.Clear();
+            _importedHoistVisuals.Clear();
+            _importedPlantLine = null;
             Content = null;
         }
 
@@ -136,7 +177,7 @@ namespace USR_ElectroPilot.ThreeD.Views
             }
         }
 
-        public void UpdatePlant(IList<TankModel> tanks, IList<ProcessStepModel> processSteps, IList<HoistModel> hoists, IList<JobModel> jobs, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop)
+        public void UpdatePlant(IList<TankModel> tanks, IList<ProcessStepModel> processSteps, IList<HoistModel> hoists, IList<JobModel> jobs, HoistStatusModel hoistStatus, double hoistPositionIndex, string currentStepName, int remainingSeconds, bool autoMode, bool emergencyStop, PlantTelemetrySnapshot telemetrySnapshot = null)
         {
             if (_disposed)
             {
@@ -155,6 +196,10 @@ namespace USR_ElectroPilot.ThreeD.Views
                 ? new List<HoistModel>()
                 : hoists.OrderBy(h => string.Equals(h.HoistName, "H1", StringComparison.OrdinalIgnoreCase) ? 0 : 1).ThenBy(h => h.HoistId).Take(1).ToList();
 
+            if (telemetrySnapshot != null)
+            {
+                _currentTelemetrySnapshot = telemetrySnapshot;
+            }
             BuildScene(tankList, hoistList, hoistPositionIndex, emergencyStop);
         }
 
@@ -164,24 +209,44 @@ namespace USR_ElectroPilot.ThreeD.Views
             {
                 _viewport.Children.Clear();
                 _hoistVisuals.Clear();
+                _tankDynamicVisuals.Clear();
+                _importedPlantLine = null;
                 _currentLine = null;
                 _staticSceneKey = null;
+                _tankDynamicSceneKey = null;
                 return;
             }
 
-            var sceneKey = BuildStaticSceneKey(tanks);
+            RefreshRealPlantAssetsIfNeeded();
+            var useImportedPlant = HasCompleteImportedPlant();
+            var sceneKey = BuildStaticSceneKey(tanks, useImportedPlant);
             if (!string.Equals(_staticSceneKey, sceneKey, StringComparison.Ordinal))
             {
                 _viewport.Children.Clear();
                 _hoistVisuals.Clear();
+                _tankDynamicVisuals.Clear();
+                _importedHoistVisuals.Clear();
+                _importedPlantLine = null;
                 AddSceneLights();
 
-                _currentLine = TankLine3DBuilder.AddLine(_viewport, tanks, _selectedTankId);
+                if (useImportedPlant)
+                {
+                    _importedPlantLine = ImportedPlant3DBuilder.AddLine(_viewport, tanks, GetLoadedPlantModels());
+                    _currentLine = _importedPlantLine.Line;
+                    IsUsingImportedPlantAssets = true;
+                }
+                else
+                {
+                    _currentLine = TankLine3DBuilder.AddLine(_viewport, tanks, _selectedTankId);
+                    IsUsingImportedPlantAssets = false;
+                }
                 _plantLength = _currentLine.RailLength;
                 _plantWidth = 5.45;
-                _plantHeight = 2.95;
+                _plantHeight = 3.45;
                 _staticSceneKey = sceneKey;
+                _tankDynamicSceneKey = null;
                 StaticSceneBuildCount++;
+                RefreshRealHoistAssetsIfNeeded();
 
                 EnsureCameraReady();
             }
@@ -190,6 +255,8 @@ namespace USR_ElectroPilot.ThreeD.Views
             {
                 return;
             }
+
+            RenderTankDynamicLayerIfNeeded(tanks);
 
             var activeHoists = hoists.Count == 0
                 ? new List<HoistModel> { new HoistModel { HoistName = "H1", PositionIndex = fallbackHoistPosition, Status = "Idle", CurrentTankNo = Math.Max(1, Convert.ToInt32(fallbackHoistPosition) + 1) } }
@@ -352,20 +419,83 @@ namespace USR_ElectroPilot.ThreeD.Views
             };
         }
 
-        private string BuildStaticSceneKey(IList<TankModel> tanks)
+        private string BuildStaticSceneKey(IList<TankModel> tanks, bool useImportedPlant)
         {
-            var parts = tanks.Select(t => string.Join(":",
+            var parts = useImportedPlant
+                ? tanks.Select(t => string.Join(":",
+                    t.Id,
+                    t.LineId,
+                    t.TankNo,
+                    t.TankNumber,
+                    t.IsActive))
+                : tanks.Select(t => string.Join(":",
+                    t.Id,
+                    t.LineId,
+                    t.TankNo,
+                    t.TankNumber,
+                    t.Name,
+                    t.Status,
+                    Math.Round(t.CurrentLevelLiters, 1),
+                    Math.Round(t.CapacityLiters, 1),
+                    _selectedTankId.HasValue && _selectedTankId.Value == t.Id ? "S" : string.Empty));
+
+            return string.Join("|", parts.ToArray());
+        }
+
+        private void RenderTankDynamicLayerIfNeeded(IList<TankModel> tanks)
+        {
+            if (!IsUsingImportedPlantAssets || _currentLine == null)
+            {
+                return;
+            }
+
+            var dynamicKey = BuildTankDynamicSceneKey(tanks);
+            if (string.Equals(_tankDynamicSceneKey, dynamicKey, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            foreach (var visual in _tankDynamicVisuals)
+            {
+                _viewport.Children.Remove(visual);
+            }
+            _tankDynamicVisuals.Clear();
+
+            for (var i = 0; i < tanks.Count; i++)
+            {
+                var tank = tanks[i];
+                TankDynamic3DBuilder.AddTankState(
+                    _viewport,
+                    tank,
+                    _currentLine.GetTankX(i),
+                    _selectedTankId.HasValue && _selectedTankId.Value == tank.Id,
+                    GetMotorState(tank),
+                    _tankDynamicVisuals);
+            }
+
+            _tankDynamicSceneKey = dynamicKey;
+            TankDynamicBuildCount++;
+        }
+
+        private string BuildTankDynamicSceneKey(IList<TankModel> tanks)
+        {
+            return string.Join("|", tanks.Select(t => string.Join(":",
                 t.Id,
-                t.LineId,
-                t.TankNo,
-                t.TankNumber,
                 t.Name,
+                t.ChemicalName,
                 t.Status,
                 Math.Round(t.CurrentLevelLiters, 1),
                 Math.Round(t.CapacityLiters, 1),
-                _selectedTankId.HasValue && _selectedTankId.Value == t.Id ? "S" : string.Empty));
+                GetMotorState(t),
+                _selectedTankId.HasValue && _selectedTankId.Value == t.Id ? "S" : string.Empty)).ToArray());
+        }
 
-            return string.Join("|", parts.ToArray());
+        private EquipmentOperatingState GetMotorState(TankModel tank)
+        {
+            var motor = _currentTelemetrySnapshot.Motors.FirstOrDefault(m =>
+                (m.TankId.HasValue && tank != null && m.TankId.Value == tank.Id) ||
+                (m.TankNo.HasValue && tank != null && m.TankNo.Value == tank.TankNo));
+            return EquipmentTelemetryStateResolver.Resolve(motor, DateTime.UtcNow, TimeSpan.FromSeconds(5));
         }
 
         private void RemoveHoistVisuals()
@@ -376,12 +506,17 @@ namespace USR_ElectroPilot.ThreeD.Views
             }
 
             _hoistVisuals.Clear();
+            _importedHoistVisuals.Clear();
         }
 
         private void AddHoistVisual(HoistModel hoist, double hoistX, bool emergencyStop, double liftProgress)
         {
             var firstDynamicIndex = _viewport.Children.Count;
-            PortalHoist3DBuilder.AddHoist(_viewport, hoist, hoistX, emergencyStop, liftProgress);
+            if (!TryAddImportedHoist(hoistX, liftProgress))
+            {
+                PortalHoist3DBuilder.AddHoist(_viewport, hoist, hoistX, emergencyStop, liftProgress);
+                IsUsingImportedHoistAssets = false;
+            }
 
             for (var i = firstDynamicIndex; i < _viewport.Children.Count; i++)
             {
@@ -389,6 +524,152 @@ namespace USR_ElectroPilot.ThreeD.Views
             }
 
             HoistVisualBuildCount++;
+        }
+
+        private bool TryAddImportedHoist(double hoistX, double liftProgress)
+        {
+            if (!HasCompleteImportedHoist())
+            {
+                return false;
+            }
+
+            var liftZ = 2.16 - (0.74 * Math.Max(0, Math.Min(1, liftProgress)));
+            AddImportedModel("hoist_h1", new TranslateTransform3D(hoistX, 0, 0));
+            AddImportedModel("motor_gearbox", new TranslateTransform3D(hoistX, 0, 0));
+            AddImportedModel("plate_rack", new TranslateTransform3D(hoistX, 0, liftZ - 2.16));
+            AddImportedModel("hanging_plate", new TranslateTransform3D(hoistX, 0, liftZ - 2.16));
+            IsUsingImportedHoistAssets = true;
+            return true;
+        }
+
+        private void AddImportedModel(string key, Transform3D dynamicTransform)
+        {
+            RealModelLoadResult result;
+            if (!_realHoistAssets.TryGetValue(key, out result) || result == null || result.Model == null)
+            {
+                return;
+            }
+
+            var visual = new ModelVisual3D
+            {
+                Content = result.Model.CloneCurrentValue(),
+                Transform = dynamicTransform
+            };
+            _viewport.Children.Add(visual);
+            _importedHoistVisuals[key] = visual;
+        }
+
+        private bool HasCompleteImportedHoist()
+        {
+            return IsRealModelLoaded("hoist_h1") &&
+                IsRealModelLoaded("motor_gearbox") &&
+                IsRealModelLoaded("plate_rack") &&
+                IsRealModelLoaded("hanging_plate");
+        }
+
+        private bool IsRealModelLoaded(string key)
+        {
+            RealModelLoadResult result;
+            return _realHoistAssets.TryGetValue(key, out result) &&
+                result != null &&
+                result.State == RealModelLoadState.Loaded &&
+                result.Model != null;
+        }
+
+        private bool HasCompleteImportedPlant()
+        {
+            return IsRealPlantModelLoaded("tank_standard") &&
+                IsRealPlantModelLoaded("pipe_manifold") &&
+                IsRealPlantModelLoaded("pump") &&
+                IsRealPlantModelLoaded("walkway");
+        }
+
+        private bool IsRealPlantModelLoaded(string key)
+        {
+            RealModelLoadResult result;
+            return _realPlantAssets.TryGetValue(key, out result) &&
+                result != null &&
+                result.State == RealModelLoadState.Loaded &&
+                result.Model != null;
+        }
+
+        private IDictionary<string, Model3DGroup> GetLoadedPlantModels()
+        {
+            return _realPlantAssets
+                .Where(pair => pair.Value != null && pair.Value.Model != null)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.Model, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private void RefreshRealPlantAssetsIfNeeded()
+        {
+            var applicationPath = Path.GetDirectoryName(typeof(Plant3DView).Assembly.Location);
+            var statuses = _realModelManifest.FindAvailableAssets(applicationPath)
+                .Where(s => s.Part != null && !s.Part.IsDynamic)
+                .ToArray();
+            var assetKey = string.Join("|", statuses.Select(s => s.Part.Key + "=" + (s.FullPath ?? string.Empty)).ToArray());
+
+            if (string.Equals(_realPlantAssetKey, assetKey, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _realPlantAssetKey = assetKey;
+            var transforms = statuses.ToDictionary(
+                s => s.Part.Key,
+                s => new RealModelTransform { ScaleX = 1, ScaleY = 1, ScaleZ = 1 },
+                StringComparer.OrdinalIgnoreCase);
+            var loadResults = _realModelLoader.LoadAvailableWpfModels(statuses, transforms, Dispatcher);
+
+            _realPlantAssets = loadResults
+                .Where(r => r.Part != null)
+                .ToDictionary(r => r.Part.Key, r => r, StringComparer.OrdinalIgnoreCase);
+            RealPlantAssetReadinessReport = _realModelLoader.CreateReadinessReport(loadResults);
+            Logger.Info("Real plant model asset readiness: " + RealPlantAssetReadinessReport);
+            foreach (var failedResult in loadResults.Where(r => r.State == RealModelLoadState.Failed || r.State == RealModelLoadState.UnsupportedFormat))
+            {
+                Logger.Info("Real plant model asset " + failedResult.Part.Key + ": " + failedResult.Message);
+            }
+        }
+
+        private void RefreshRealHoistAssetsIfNeeded()
+        {
+            var applicationPath = Path.GetDirectoryName(typeof(Plant3DView).Assembly.Location);
+            var statuses = _realModelManifest.FindAvailableAssets(applicationPath);
+            var assetKey = string.Join("|", statuses
+                .Where(s => s.Part != null && s.Part.IsDynamic)
+                .Select(s => s.Part.Key + "=" + (s.FullPath ?? string.Empty))
+                .ToArray());
+
+            if (string.Equals(_realHoistAssetKey, assetKey, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _realHoistAssetKey = assetKey;
+            var transforms = CreateDefaultHoistAssetTransforms();
+            var loadResults = _realModelLoader
+                .LoadAvailableWpfModels(statuses.Where(s => s.Part != null && s.Part.IsDynamic), transforms, Dispatcher);
+
+            _realHoistAssets = loadResults
+                .Where(r => r.Part != null)
+                .ToDictionary(r => r.Part.Key, r => r, StringComparer.OrdinalIgnoreCase);
+            RealHoistAssetReadinessReport = _realModelLoader.CreateReadinessReport(loadResults);
+            Logger.Info("Real H1 model asset readiness: " + RealHoistAssetReadinessReport);
+            foreach (var failedResult in loadResults.Where(r => r.State == RealModelLoadState.Failed || r.State == RealModelLoadState.UnsupportedFormat))
+            {
+                Logger.Info("Real H1 model asset " + failedResult.Part.Key + ": " + failedResult.Message);
+            }
+        }
+
+        private static IDictionary<string, RealModelTransform> CreateDefaultHoistAssetTransforms()
+        {
+            return new Dictionary<string, RealModelTransform>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "hoist_h1", new RealModelTransform { ScaleX = 1, ScaleY = 1, ScaleZ = 1 } },
+                { "motor_gearbox", new RealModelTransform { ScaleX = 1, ScaleY = 1, ScaleZ = 1 } },
+                { "plate_rack", new RealModelTransform { ScaleX = 1, ScaleY = 1, ScaleZ = 1 } },
+                { "hanging_plate", new RealModelTransform { ScaleX = 1, ScaleY = 1, ScaleZ = 1 } }
+            };
         }
 
         private void SetDefaultCamera()
